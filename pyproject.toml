@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "multikit"
+version = "0.1.0"
+description = "Kit manager for VS Code Copilot agents and prompts"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "cyclopts>=3.6",
+    "httpx>=0.28.0",
+    "pydantic>=2.0",
+    "tomli>=2.0.0; python_version < '3.11'",
+    "tomli-w>=1.0.0",
+]
+
+[project.scripts]
+multikit = "multikit.cli:app"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "respx>=0.22.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/multikit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["multikit"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90
