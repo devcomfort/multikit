@@ -1,0 +1,14 @@
+{
+  "kits": [
+    {
+      "name": "testkit",
+      "version": "1.0.0",
+      "description": "Test design and coverage agents"
+    },
+    {
+      "name": "gitkit",
+      "version": "1.0.0",
+      "description": "Git commit agents"
+    }
+  ]
+}
