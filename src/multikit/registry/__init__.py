@@ -1,0 +1,1 @@
+"""Multikit registry client."""
