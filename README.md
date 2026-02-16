@@ -14,26 +14,10 @@ VS Code Copilot 에이전트/프롬프트를 프로젝트에 설치·관리하�
 
 ## 설치
 
-### rye (권장)
-
 ```bash
-rye add multikit
-rye sync
-```
-
-### pip
-
-```bash
-pip install multikit
-```
-
-### 개발 환경
-
-```bash
-git clone https://github.com/devcomfort/multikit.git
-cd multikit
-rye sync          # 의존성 설치 + editable install
-rye run multikit --version
+pip install "git+https://github.com/devcomfort/multikit.git@main"           # pip로 GitHub(main)에서 직접 설치
+uv tool install "git+https://github.com/devcomfort/multikit.git@main"       # uv tool로 전역 CLI 설치
+rye add "git+https://github.com/devcomfort/multikit.git@main"               # rye 프로젝트 의존성으로 추가(자동 동기화)
 ```
 
 ## 사용법
