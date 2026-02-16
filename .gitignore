@@ -41,3 +41,6 @@ htmlcov/
 
 # Temp
 *.tmp
+
+# Multikit local config
+multikit.toml

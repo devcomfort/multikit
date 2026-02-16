@@ -9,6 +9,11 @@
       "name": "gitkit",
       "version": "1.0.0",
       "description": "Git commit agents"
+    },
+    {
+      "name": "lintkit",
+      "version": "1.0.0",
+      "description": "Code analysis and linting agents"
     }
   ]
 }

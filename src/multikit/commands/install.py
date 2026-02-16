@@ -10,9 +10,10 @@ import httpx
 from cyclopts import App, Parameter
 
 from multikit.models.config import InstalledKit
-from multikit.registry.remote import fetch_file, fetch_manifest
+from multikit.registry.remote import fetch_file, fetch_manifest, fetch_registry
 from multikit.utils.diff import prompt_overwrite, show_diff
 from multikit.utils.files import atomic_staging, move_staged_files, stage_file
+from multikit.utils.prompt import select_installable_kit
 from multikit.utils.toml_io import load_config, save_config
 
 app = App(name="install", help="Install a kit from the registry.")
@@ -20,7 +21,10 @@ app = App(name="install", help="Install a kit from the registry.")
 
 @app.default
 def handler(
-    kit_name: str,
+    kit_name: Annotated[
+        str | None,
+        Parameter(help="Name of the kit to install (interactive if omitted)"),
+    ] = None,
     *,
     force: Annotated[
         bool, Parameter(help="Overwrite all without confirmation")
@@ -35,7 +39,7 @@ def handler(
     Parameters
     ----------
     kit_name
-        Name of the kit to install.
+        Name of the kit to install. If omitted, shows an interactive selection.
     """
     project_dir = Path(".").resolve()
     github_dir = project_dir / ".github"
@@ -48,6 +52,17 @@ def handler(
         sys.exit(1)
 
     registry_url = registry or config.registry_url
+
+    # Interactive selection when kit_name is not provided
+    if kit_name is None:
+        try:
+            remote_registry = fetch_registry(registry_url)
+        except Exception:
+            print("✗ Cannot fetch registry for interactive selection.", file=sys.stderr)
+            sys.exit(1)
+        kit_name = select_installable_kit(config, remote_registry)
+        if kit_name is None:
+            sys.exit(0)
 
     # Step 2: Fetch manifest
     print(f"Fetching manifest for '{kit_name}'...")
