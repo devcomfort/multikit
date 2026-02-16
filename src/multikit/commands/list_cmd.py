@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from cyclopts import App
+from tabulate import tabulate
 
 from multikit.models.kit import Registry
 from multikit.registry.remote import fetch_registry
@@ -46,7 +47,7 @@ def handler() -> None:
                 kits_table.append(
                     {
                         "name": entry.name,
-                        "status": "✅ Installed",
+                        "status": "Installed",
                         "version": installed_kit.version,
                         "agents": str(
                             len(
@@ -72,7 +73,7 @@ def handler() -> None:
                 kits_table.append(
                     {
                         "name": entry.name,
-                        "status": "❌ Available",
+                        "status": "Available",
                         "version": entry.version,
                         "agents": "—",
                         "prompts": "—",
@@ -86,7 +87,7 @@ def handler() -> None:
             kits_table.append(
                 {
                     "name": kit_name,
-                    "status": "✅ Installed",
+                    "status": "Installed",
                     "version": kit_info.version,
                     "agents": str(
                         len([f for f in kit_info.files if f.startswith("agents/")])
@@ -102,28 +103,9 @@ def handler() -> None:
         print("No kits found.")
         return
 
-    # Calculate column widths
     headers = ["Kit", "Status", "Version", "Agents", "Prompts"]
-    col_widths = [len(h) for h in headers]
-    for row in kits_table:
-        col_widths[0] = max(col_widths[0], len(row["name"]))
-        col_widths[1] = max(col_widths[1], len(row["status"]))
-        col_widths[2] = max(col_widths[2], len(row["version"]))
-        col_widths[3] = max(col_widths[3], len(row["agents"]))
-        col_widths[4] = max(col_widths[4], len(row["prompts"]))
-
-    # Print header
-    header_line = "  ".join(h.ljust(w) for h, w in zip(headers, col_widths))
-    print(header_line)
-    print("  ".join("─" * w for w in col_widths))
-
-    # Print rows
-    for row in kits_table:
-        values = [
-            row["name"],
-            row["status"],
-            row["version"],
-            row["agents"],
-            row["prompts"],
-        ]
-        print("  ".join(v.ljust(w) for v, w in zip(values, col_widths)))
+    rows = [
+        [row["name"], row["status"], row["version"], row["agents"], row["prompts"]]
+        for row in kits_table
+    ]
+    print(tabulate(rows, headers=headers, tablefmt="simple"))
