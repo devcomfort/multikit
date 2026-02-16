@@ -1,0 +1,11 @@
+{
+  "name": "gitkit",
+  "version": "1.0.0",
+  "description": "Git commit agents for Copilot",
+  "agents": [
+    "gitkit.commit.agent.md"
+  ],
+  "prompts": [
+    "gitkit.commit.prompt.md"
+  ]
+}

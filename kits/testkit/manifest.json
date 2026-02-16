@@ -1,0 +1,13 @@
+{
+  "name": "testkit",
+  "version": "1.0.0",
+  "description": "Test design and coverage agents",
+  "agents": [
+    "testkit.testdesign.agent.md",
+    "testkit.testcoverage.agent.md"
+  ],
+  "prompts": [
+    "testkit.testdesign.prompt.md",
+    "testkit.testcoverage.prompt.md"
+  ]
+}
