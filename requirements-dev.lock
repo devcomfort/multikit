@@ -16,13 +16,21 @@ anyio==4.12.1
     # via httpx
 attrs==25.4.0
     # via cyclopts
+cachetools==7.0.1
+    # via tox
 certifi==2026.1.4
     # via httpcore
     # via httpx
+chardet==5.2.0
+    # via tox
+colorama==0.4.6
+    # via tox
 coverage==7.13.4
     # via pytest-cov
 cyclopts==4.5.2
     # via multikit
+distlib==0.4.0
+    # via virtualenv
 docstring-parser==0.17.0
     # via cyclopts
 docutils==0.22.4
@@ -30,6 +38,9 @@ docutils==0.22.4
 exceptiongroup==1.3.1
     # via anyio
     # via pytest
+filelock==3.24.2
+    # via tox
+    # via virtualenv
 h11==0.16.0
     # via httpcore
 httpcore==1.0.9
@@ -47,10 +58,16 @@ markdown-it-py==4.0.0
 mdurl==0.1.2
     # via markdown-it-py
 packaging==26.0
+    # via pyproject-api
     # via pytest
+    # via tox
+platformdirs==4.9.2
+    # via tox
+    # via virtualenv
 pluggy==1.6.0
     # via pytest
     # via pytest-cov
+    # via tox
 prompt-toolkit==3.0.52
     # via questionary
 pydantic==2.12.5
@@ -60,6 +77,8 @@ pydantic-core==2.41.5
 pygments==2.19.2
     # via pytest
     # via rich
+pyproject-api==1.10.0
+    # via tox
 pytest==9.0.2
     # via pytest-cov
 pytest-cov==7.0.0
@@ -77,17 +96,26 @@ tomli==2.4.0
     # via coverage
     # via cyclopts
     # via multikit
+    # via pyproject-api
     # via pytest
+    # via tox
 tomli-w==1.2.0
     # via multikit
+tox==4.36.0
+    # via tox-gh-actions
+tox-gh-actions==3.5.0
 typing-extensions==4.15.0
     # via anyio
     # via cyclopts
     # via exceptiongroup
     # via pydantic
     # via pydantic-core
+    # via tox
     # via typing-inspection
+    # via virtualenv
 typing-inspection==0.4.2
     # via pydantic
+virtualenv==20.37.0
+    # via tox
 wcwidth==0.6.0
     # via prompt-toolkit
