@@ -53,14 +53,21 @@ idna==3.11
     # via httpx
 iniconfig==2.3.0
     # via pytest
+librt==0.8.0
+    # via mypy
 markdown-it-py==4.0.0
     # via rich
 mdurl==0.1.2
     # via markdown-it-py
+mypy==1.19.1
+mypy-extensions==1.1.0
+    # via mypy
 packaging==26.0
     # via pyproject-api
     # via pytest
     # via tox
+pathspec==1.0.4
+    # via mypy
 platformdirs==4.9.2
     # via tox
     # via virtualenv
@@ -90,12 +97,14 @@ rich==14.3.2
     # via rich-rst
 rich-rst==1.3.2
     # via cyclopts
+ruff==0.15.1
 tabulate==0.9.0
     # via multikit
 tomli==2.4.0
     # via coverage
     # via cyclopts
     # via multikit
+    # via mypy
     # via pyproject-api
     # via pytest
     # via tox
@@ -104,10 +113,12 @@ tomli-w==1.2.0
 tox==4.36.0
     # via tox-gh-actions
 tox-gh-actions==3.5.0
+types-tabulate==0.9.0.20241207
 typing-extensions==4.15.0
     # via anyio
     # via cyclopts
     # via exceptiongroup
+    # via mypy
     # via pydantic
     # via pydantic-core
     # via tox
