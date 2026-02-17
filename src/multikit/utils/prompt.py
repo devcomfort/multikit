@@ -10,20 +10,20 @@ from multikit.models.config import MultikitConfig
 from multikit.models.kit import Registry
 
 
-def select_installable_kit(
+def select_installable_kits(
     config: MultikitConfig,
     remote_registry: Registry | None,
-) -> str | None:
-    """Prompt the user to select a kit to install.
+) -> list[str]:
+    """Prompt the user to select kits to install (multi-select).
 
     Shows only kits that are available but not yet installed.
 
     Returns:
-        Selected kit name, or None if cancelled.
+        List of selected kit names (empty if cancelled or none available).
     """
     if remote_registry is None:
         print("✗ Cannot show kit list: registry unavailable.", file=sys.stderr)
-        return None
+        return []
 
     choices: list[questionary.Choice] = []
     for entry in remote_registry.kits:
@@ -37,30 +37,32 @@ def select_installable_kit(
 
     if not choices:
         print("No kits available to install.")
-        return None
+        return []
 
-    return questionary.select(
-        "Select a kit to install:",
+    result = questionary.checkbox(
+        "Select kits to install (space to toggle, enter to confirm):",
         choices=choices,
     ).ask()
 
+    return result if result else []
 
-def select_installed_kit(
+
+def select_installed_kits(
     config: MultikitConfig,
     action: str = "uninstall",
-) -> str | None:
-    """Prompt the user to select an installed kit.
+) -> list[str]:
+    """Prompt the user to select installed kits (multi-select).
 
     Args:
         config: Current multikit config.
         action: Action verb for the prompt (e.g. "uninstall", "diff").
 
     Returns:
-        Selected kit name, or None if cancelled.
+        List of selected kit names (empty if cancelled or none installed).
     """
     if not config.kits:
         print("No kits installed.")
-        return None
+        return []
 
     choices: list[questionary.Choice] = []
     for kit_name, kit_info in config.kits.items():
@@ -71,7 +73,9 @@ def select_installed_kit(
             )
         )
 
-    return questionary.select(
-        f"Select a kit to {action}:",
+    result = questionary.checkbox(
+        f"Select kits to {action} (space to toggle, enter to confirm):",
         choices=choices,
     ).ask()
+
+    return result if result else []
