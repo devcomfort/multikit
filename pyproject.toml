@@ -32,6 +32,13 @@ dev-dependencies = [
     "tox-gh-actions>=3.5.0",
 ]
 
+[tool.rye.scripts]
+test = "pytest tests/ -v"
+"test:cov" = "pytest tests/ --cov=multikit --cov-report=term-missing"
+"test:tox" = "tox"
+lint = "ruff check src/ tests/"
+format = "ruff format src/ tests/"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/multikit"]
 

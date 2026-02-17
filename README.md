@@ -1,5 +1,7 @@
 # multikit
 
+![CI](https://github.com/devcomfort/multikit/actions/workflows/ci.yml/badge.svg)
+
 VS Code Copilot 에이전트/프롬프트를 프로젝트에 설치·관리하는 CLI 도구입니다.
 
 `multikit install testkit` 한 줄로 `.github/agents/`와 `.github/prompts/`에 커스텀 에이전트를 설치하고, `multikit.toml`로 설치 상태를 추적합니다.
@@ -178,19 +180,19 @@ cd multikit
 rye sync
 
 # 테스트 실행
-rye run pytest tests/ -v
+rye run test
 
 # 커버리지 확인 (fail_under=90%)
-rye run pytest tests/ --cov=multikit --cov-report=term-missing
+rye run test:cov
 
 # tox로 다중 Python 버전 테스트 (3.10, 3.11, 3.12, 3.13)
-rye run tox
+rye run test:tox
 
 # 린트
-rye run ruff check src/ tests/
+rye run lint
 
 # 포맷팅
-rye run ruff format src/ tests/
+rye run format
 ```
 
 ### 아키텍처
@@ -266,10 +268,9 @@ tests/                   # pytest 테스트 (test_*.py, conftest.py fixtures)
 - **Fixtures**: `tests/conftest.py`에 공용 fixture 정의 (`project_dir`, `initialized_project`, `sample_manifest` 등)
 
 ```bash
-rye run pytest tests/ -v            # 전체 테스트
-rye run pytest tests/ -x            # 첫 실패 시 중단
-rye run tox                         # 다중 Python 버전 테스트
-rye run tox -e coverage             # 커버리지 리포트
+rye run test                        # 전체 테스트
+rye run test:cov                    # 커버리지 리포트
+rye run test:tox                    # 다중 Python 버전 테스트 (tox)
 ```
 
 ### 커스텀 킷 만들기
@@ -310,8 +311,8 @@ rye run tox -e coverage             # 커버리지 리포트
 
 1. 이슈를 열거나, 기존 이슈에 코멘트
 2. feature 브랜치에서 작업 (`feature/<설명>`)
-3. 테스트 작성 및 통과 확인 (`rye run pytest tests/ -v`)
-4. 린트 통과 확인 (`rye run ruff check src/ tests/`)
+3. 테스트 작성 및 통과 확인 (`rye run test`)
+4. 린트 통과 확인 (`rye run lint`)
 5. PR 생성
 
 ### 버전 관리
