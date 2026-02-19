@@ -75,7 +75,7 @@ Create internal representations (do not include raw artifacts in output):
 
 ### 4. Detection Passes (Token-Efficient Analysis)
 
-Focus on high-signal findings. Limit to 50 findings total; aggregate remainder in overflow summary.
+Enumerate ALL detected findings without artificial limits. Focus on high-signal, actionable findings.
 
 #### A. Duplication Detection
 
@@ -120,22 +120,59 @@ Use this heuristic to prioritize findings:
 - **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case
 - **LOW**: Style/wording improvements, minor redundancy not affecting execution order
 
-### 6. Produce Compact Analysis Report
+### 6. Produce Structured Analysis Report
 
-Output a Markdown report (no file writes) with the following structure:
+Output a Markdown report (no file writes) split into two actionable sections. Report ALL findings—do not cap at a fixed number.
+
+---
 
 ## Specification Analysis Report
 
-| ID | Category | Severity | Location(s) | Summary | Recommendation |
-|----|----------|----------|-------------|---------|----------------|
-| A1 | Duplication | HIGH | spec.md:L120-134 | Two similar requirements ... | Merge phrasing; keep clearer version |
+### 6-A. 의사결정 불필요 수정사항 (No Decision Needed)
 
-(Add one row per finding; generate stable IDs prefixed by category initial.)
+Issues with a single clear fix that the agent (or developer) can apply without ambiguity.
+
+| ID   | Category      | Severity | Location(s) | Summary              | Proposed Fix         |
+| ---- | ------------- | -------- | ----------- | -------------------- | -------------------- |
+| N-01 | Inconsistency | MEDIUM   | plan.md:L42 | Stale reference to X | Replace "X" with "Y" |
+
+(One row per finding. Stable IDs prefixed `N-` for no-decision.)
+
+### 6-B. 의사결정 필요/가능 수정사항 (Decision Needed / Decision Possible)
+
+Issues where multiple valid resolutions exist. Present **3–5 mutually exclusive options** plus a free-form fallback for each.
+Include items where a decision is not strictly required but the developer may benefit from choosing.
+
+**Dependency grouping:** Before presenting D-\* items, classify each as independent or dependent:
+
+- **Independent**: Answering this item does NOT change, invalidate, or create other D-\* items.
+- **Dependent**: Answering this item changes the options, relevance, or existence of other D-\* items. Mark with `⚠️ depends on: D-{predecessor_id}`.
+
+If all items are independent, present them all at once. If dependency chains exist, note them so the user can answer predecessors first. Items that depend on others should include the dependency annotation in their block header.
+
+For each finding, output this block:
+
+> **D-{id}** | {Category} | {Severity} | {Location(s)}
+> **Summary:** {description}
+>
+> | Option                 | Description                              |
+> | ---------------------- | ---------------------------------------- |
+> | A                      | …                                        |
+> | B                      | …                                        |
+> | C                      | …                                        |
+> | (D/E as needed, max 5) | …                                        |
+> | 서술형                 | 위 선택지에 해당하지 않는 경우 직접 작성 |
+>
+> **Recommended:** Option {X} — {1-2 sentence reasoning}
+
+(Stable IDs prefixed `D-` for decision-needed.)
+
+---
 
 **Coverage Summary Table:**
 
 | Requirement Key | Has Task? | Task IDs | Notes |
-|-----------------|-----------|----------|-------|
+| --------------- | --------- | -------- | ----- |
 
 **Constitution Alignment Issues:** (if any)
 
@@ -149,6 +186,8 @@ Output a Markdown report (no file writes) with the following structure:
 - Ambiguity Count
 - Duplication Count
 - Critical Issues Count
+- No-Decision Issues Count
+- Decision-Needed Issues Count
 
 ### 7. Provide Next Actions
 
@@ -160,7 +199,10 @@ At end of report, output a concise Next Actions block:
 
 ### 8. Offer Remediation
 
-Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
+After presenting the report:
+
+1. **No-Decision items (N-\*)**: Ask the user "N-\* 수정사항을 일괄 적용할까요?" (batch-apply all, or let the user exclude specific IDs).
+2. **Decision items (D-\*)**: Collect the user's option choices (letter or free-form) for each D-\* item. The user may answer all at once (e.g., "D-01: B, D-02: A, D-03: 서술형—내 의견은…") or answer incrementally. - If dependency chains were annotated, remind the user to answer predecessor items first. After predecessors are resolved, re-evaluate dependent items (options may change or items may become unnecessary) and present updated D-\* blocks for the next round.3. Do NOT apply any edits until the user explicitly approves. Present a final confirmation summary before writing.
 
 ## Operating Principles
 
@@ -168,7 +210,7 @@ Ask the user: "Would you like me to suggest concrete remediation edits for the t
 
 - **Minimal high-signal tokens**: Focus on actionable findings, not exhaustive documentation
 - **Progressive disclosure**: Load artifacts incrementally; don't dump all content into analysis
-- **Token-efficient output**: Limit findings table to 50 rows; summarize overflow
+- **Exhaustive output**: Report ALL detected findings without artificial row limits; prefer concise per-row descriptions to stay readable
 - **Deterministic results**: Rerunning without changes should produce consistent IDs and counts
 
 ### Analysis Guidelines
