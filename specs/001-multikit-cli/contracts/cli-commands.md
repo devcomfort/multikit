@@ -1,324 +1,95 @@
-# CLI Command Contracts: Multikit CLI (MVP)
+# CLI Contracts: Multikit CLI (MVP)
 
-**Feature**: 001-multikit-cli
-**Date**: 2026-02-12
-**Framework**: cyclopts
+## Command Surface
 
-## Entry Point
+- `multikit init [path]`
+- `multikit install <kit_name> [--force] [--registry <url>]`
+- `multikit list`
+- `multikit uninstall <kit_name>`
+- `multikit diff <kit_name>`
 
-```toml
-# pyproject.toml
-[project.scripts]
-multikit = "multikit.cli:app"
-```
+## Common Rules
 
-```python
-# src/multikit/cli.py
-import cyclopts
-from multikit import __version__
+- Exit code `0`: 성공
+- Exit code `1`: 에러(유효하지 않은 킷, 네트워크 실패, 설정 파싱 실패 등)
+- 네트워크 오류는 crash 없이 사용자 친화 메시지로 반환
 
-app = cyclopts.App(
-    name="multikit",
-    help="Kit manager for VS Code Copilot agents.",
-    version=__version__,
-)
-
-# Sub-command apps are registered via app.command()
-from multikit.commands.init import app as init_app
-from multikit.commands.install import app as install_app
-from multikit.commands.uninstall import app as uninstall_app
-from multikit.commands.list_cmd import app as list_app
-from multikit.commands.diff import app as diff_app
-
-app.command(init_app)
-app.command(install_app)
-app.command(uninstall_app)
-app.command(list_app)
-app.command(diff_app)
-```
-
----
-
-## Command: `multikit init`
-
-**Module**: `src/multikit/commands/init.py`
-
-### Signature
-
-```python
-# src/multikit/commands/init.py
-from cyclopts import App
-
-app = App(name="init", help="Initialize a new multikit project.")
-
-@app.default
-def handler(
-    path: Annotated[str, Parameter(help="Target project directory")] = ".",
-) -> None:
-```
+## `multikit init`
 
 ### Behavior
 
-| Step | Action                    | Detail                                                         |
-| ---- | ------------------------- | -------------------------------------------------------------- |
-| 1    | Resolve path              | `Path(path).resolve()`                                         |
-| 2    | Create `.github/agents/`  | `mkdir(parents=True, exist_ok=True)`                           |
-| 3    | Create `.github/prompts/` | `mkdir(parents=True, exist_ok=True)`                           |
-| 4    | Create `multikit.toml`    | Only if not exists. Default template with `[multikit]` section |
+1. 대상 경로 확인(기본 `.`)
+2. `.github/agents`, `.github/prompts` 생성(`exist_ok=True`)
+3. `multikit.toml` 없으면 기본 템플릿 생성
 
-### Input/Output
+### Guarantees
 
-| Type            | Format                                 |
-| --------------- | -------------------------------------- |
-| Input           | `path` (string, default ".")           |
-| Output (stdout) | `✓ Initialized multikit in {abs_path}` |
-| Output (stderr) | Error messages                         |
-| Exit code       | 0 (success), 1 (error)                 |
+- 멱등 실행
+- 기존 사용자 파일 보존
 
-### Idempotency
-
-- All `mkdir` calls use `exist_ok=True`
-- `multikit.toml` is only written if it doesn't already exist
-- Existing files in `.github/` are never modified
-
----
-
-## Command: `multikit install <kit_name>`
-
-**Module**: `src/multikit/commands/install.py`
-
-### Signature
-
-```python
-# src/multikit/commands/install.py
-from cyclopts import App
-
-app = App(name="install", help="Install a kit from the remote registry.")
-
-@app.default
-def handler(
-    kit_name: Annotated[str, Parameter(help="Name of the kit to install")],
-    *,
-    force: Annotated[bool, Parameter(help="Overwrite all without confirmation")] = False,
-    registry_url: Annotated[str | None, Parameter(name="--registry", help="Custom registry base URL")] = None,
-) -> None:
-```
+## `multikit install <kit_name>`
 
 ### Behavior
 
-| Step | Action            | Detail                                                                    |
-| ---- | ----------------- | ------------------------------------------------------------------------- |
-| 1    | Load config       | Read `multikit.toml`, extract `registry_url`                              |
-| 2    | Fetch manifest    | GET `{registry_url}/{kit_name}/manifest.json`                             |
-| 3    | Create temp dir   | `tempfile.TemporaryDirectory(prefix="multikit-")`                         |
-| 4    | Download files    | GET each file listed in manifest → write to temp dir                      |
-| 5    | Compare local     | If files exist in `.github/`, compare with downloaded                     |
-| 6    | Resolve conflicts | `--force`: overwrite all. Otherwise: interactive y/n/a/s per file         |
-| 7    | Move files        | `shutil.move()` from temp dir to `.github/agents/` and `.github/prompts/` |
-| 8    | Update config     | Add `[multikit.kits.<kit_name>]` to `multikit.toml`                       |
+1. `multikit.toml` 로드(또는 기본값)
+2. 원격 최신 기준으로 `manifest.json` 조회
+3. manifest 선언 파일을 tempdir에 전부 다운로드
+4. 전부 성공 시에만 `.github/` 반영(atomic)
+5. 기존 파일과 차이 있으면 diff + `[y/n/a/s]` (또는 `--force`)
+6. `multikit.toml`의 `kits.<kit_name>` 갱신
 
-### Input/Output
+### Error Contracts
 
-| Type            | Format                                                                                         |
-| --------------- | ---------------------------------------------------------------------------------------------- |
-| Input           | `kit_name` (string), `--force` (flag), `--registry` (optional URL)                             |
-| Output (stdout) | Progress: `Fetching manifest...`, `Downloading {file}...`, `✓ Installed {kit_name} v{version}` |
-| Output (stdout) | Diff output when conflicts detected                                                            |
-| Output (stdin)  | Interactive prompt `[y/n/a/s]` when conflicts and no `--force`                                 |
-| Output (stderr) | Error: `✗ Kit '{kit_name}' not found`, `✗ Network error: {detail}`                             |
-| Exit code       | 0 (success, including partial skip), 1 (error)                                                 |
+- manifest 404: `Kit not found`
+- 파일 다운로드 실패: tempdir 정리 + 기존 파일 불변
+- TOML 파싱 실패: 명확한 설정 오류 메시지
 
-### Error Cases
-
-| Error                   | Exit Code | Behavior                                                 |
-| ----------------------- | --------- | -------------------------------------------------------- |
-| Network error (connect) | 1         | Cleanup temp, print error                                |
-| 404 on manifest         | 1         | Print "Kit not found"                                    |
-| 404 on individual file  | 1         | Cleanup ALL temp files (atomic), print which file failed |
-| TOML parse error        | 1         | Print "Config corrupted" + path                          |
-| Permission denied       | 1         | Print "Cannot write to .github/"                         |
-
----
-
-## Command: `multikit uninstall <kit_name>`
-
-**Module**: `src/multikit/commands/uninstall.py`
-
-### Signature
-
-```python
-# src/multikit/commands/uninstall.py
-from cyclopts import App
-
-app = App(name="uninstall", help="Uninstall a kit.")
-
-@app.default
-def handler(
-    kit_name: Annotated[str, Parameter(help="Name of the kit to uninstall")],
-) -> None:
-```
+## `multikit list`
 
 ### Behavior
 
-| Step | Action          | Detail                                                               |
-| ---- | --------------- | -------------------------------------------------------------------- |
-| 1    | Load config     | Read `multikit.toml`                                                 |
-| 2    | Check installed | Verify `kit_name` exists in `config.kits`                            |
-| 3    | Delete files    | Remove files listed in `config.kits[kit_name].files` from `.github/` |
-| 4    | Update config   | Remove `[multikit.kits.<kit_name>]` section                          |
-| 5    | Report          | Print removed files count                                            |
+1. 로컬 config 로드
+2. 원격 `registry.json` 조회
+3. 원격 목록과 로컬 설치 상태 병합 출력(table)
 
-### Input/Output
+### Degraded Mode
 
-| Type            | Format                                         |
-| --------------- | ---------------------------------------------- |
-| Input           | `kit_name` (string)                            |
-| Output (stdout) | `✓ Uninstalled {kit_name} ({n} files removed)` |
-| Output (stderr) | `✗ Kit '{kit_name}' is not installed`          |
-| Exit code       | 0 (success), 1 (not installed)                 |
+- 원격 조회 실패 시 로컬 설치 목록만 출력 + 경고
 
----
-
-## Command: `multikit list`
-
-**Module**: `src/multikit/commands/list_cmd.py`
-
-### Signature
-
-```python
-# src/multikit/commands/list_cmd.py
-from cyclopts import App
-
-app = App(name="list", help="List available and installed kits.")
-
-@app.default
-def handler() -> None:
-```
+## `multikit uninstall <kit_name>`
 
 ### Behavior
 
-| Step | Action         | Detail                                                   |
-| ---- | -------------- | -------------------------------------------------------- |
-| 1    | Load config    | Read `multikit.toml`                                     |
-| 2    | Fetch registry | GET `{registry_url}/registry.json` (graceful on failure) |
-| 3    | Merge          | Combine remote available kits + local installed status   |
-| 4    | Print table    | Formatted table output                                   |
+1. `kits.<kit_name>` 존재 확인
+2. `files[]` 기준 파일 삭제
+3. `kits.<kit_name>` 섹션 제거 후 저장
 
-### Output Format
+### MVP Ownership Rule
 
-```
-Kit          Status       Version  Agents  Prompts
-───────────  ──────────   ───────  ──────  ───────
-testkit      ✅ Installed  1.0.0    2       2
-gitkit       ❌ Available  1.0.0    —       —
-speckit      ❌ Available  2.0.0    —       —
-```
+- 단독 소유만 처리
+- 공유 참조가 감지되는 예외 상황은 삭제하지 않고 경고
 
-On network error:
-
-```
-⚠ Could not fetch remote registry. Showing local kits only.
-
-Kit          Status       Version  Agents  Prompts
-───────────  ──────────   ───────  ──────  ───────
-testkit      ✅ Installed  1.0.0    2       2
-```
-
-### Input/Output
-
-| Type            | Format                            |
-| --------------- | --------------------------------- |
-| Input           | None                              |
-| Output (stdout) | Table as shown above              |
-| Output (stderr) | Warning on network failure        |
-| Exit code       | 0 (always, even on network error) |
-
----
-
-## Command: `multikit diff <kit_name>`
-
-**Module**: `src/multikit/commands/diff.py`
-
-### Signature
-
-```python
-# src/multikit/commands/diff.py
-from cyclopts import App
-
-app = App(name="diff", help="Show diff between local and remote kit files.")
-
-@app.default
-def handler(
-    kit_name: Annotated[str, Parameter(help="Name of the kit to diff")],
-) -> None:
-```
+## `multikit diff <kit_name>`
 
 ### Behavior
 
-| Step | Action             | Detail                                                |
-| ---- | ------------------ | ----------------------------------------------------- |
-| 1    | Load config        | Read `multikit.toml`, verify kit is installed         |
-| 2    | Fetch remote files | GET manifest + all files from remote                  |
-| 3    | Read local files   | Read corresponding files from `.github/`              |
-| 4    | Compare            | `difflib.unified_diff()` per file                     |
-| 5    | Output             | Print colored diff per file, or "No changes detected" |
+1. 로컬 설치 확인
+2. 원격 최신 manifest/files 조회
+3. 로컬 파일과 unified diff 출력
+4. 변경 없으면 `No changes detected`
 
-### Output Format
+## Prompt Contracts
 
-```
-Comparing testkit (local v1.0.0 ↔ remote v1.1.0)
+### Install conflict prompt
 
---- local/testkit.testdesign.agent.md
-+++ remote/testkit.testdesign.agent.md
-@@ -10,3 +10,5 @@
- existing line
--removed line
-+added line
-+another new line
+- Options:
+  - `y`: 현재 파일만 덮어쓰기
+  - `n`: 현재 파일 건너뛰기
+  - `a`: 이후 파일 전부 덮어쓰기
+  - `s`: 이후 파일 전부 건너뛰기
 
-✓ 1 file(s) changed, 0 unchanged
-```
+### Uninstall shared-reference warning (MVP)
 
-Or:
-
-```
-✓ No changes detected for testkit
-```
-
-### Input/Output
-
-| Type            | Format                                       |
-| --------------- | -------------------------------------------- |
-| Input           | `kit_name` (string)                          |
-| Output (stdout) | Colored unified diff or "No changes" message |
-| Output (stderr) | `✗ Kit '{kit_name}' is not installed`        |
-| Exit code       | 0 (no changes), 1 (has changes or error)     |
-
----
-
-## Shared Patterns
-
-### Config I/O
-
-```python
-# Used by all commands
-def load_config(project_dir: Path) -> MultikitConfig:
-    """Load multikit.toml from project directory."""
-
-def save_config(project_dir: Path, config: MultikitConfig) -> None:
-    """Write multikit.toml to project directory."""
-```
-
-### Registry Client
-
-```python
-# Used by install, list, diff
-def fetch_registry(registry_url: str) -> Registry:
-    """Fetch registry.json from remote."""
-
-def fetch_manifest(registry_url: str, kit_name: str) -> Manifest:
-    """Fetch manifest.json for a specific kit."""
-
-def fetch_file(registry_url: str, kit_name: str, subdir: str, filename: str) -> str:
-    """Fetch a single file content from remote."""
-```
+- 공유 감지 시:
+  - 해당 파일 삭제 생략
+  - ownership 모델은 Post-MVP 범위임을 경고

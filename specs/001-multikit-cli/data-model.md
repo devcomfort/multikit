@@ -1,148 +1,85 @@
 # Data Model: Multikit CLI (MVP)
 
-**Feature**: 001-multikit-cli
-**Date**: 2026-02-12
-**Source**: spec.md Key Entities + research.md
-
-## Entity Relationship
-
-```
-Registry (registry.json)
-  └─ 1:N ─→ RegistryEntry
-                └─ 1:1 ─→ Manifest (manifest.json, per kit)
-                              ├─ agents: [filename, ...]
-                              └─ prompts: [filename, ...]
-
-Config (multikit.toml)
-  └─ 1:N ─→ InstalledKit
-                └─ tracks installed version/source of a Kit
-```
-
 ## Entities
 
-### 1. Manifest (킷 매니페스트)
+### 1) Manifest
 
-킷의 `manifest.json`에 대응. 원격에서 다운로드하여 어떤 파일을 설치할지 결정한다.
+- Purpose: 킷 설치 파일 계약(원격 `kits/{kit}/manifest.json`)
+- Fields:
+  - `name: str`
+  - `version: str`
+  - `description: str | None`
+  - `agents: list[str]`
+  - `prompts: list[str]`
+- Validation:
+  - `name` non-empty, slug 형식 권장
+  - `agents/prompts` 항목은 각각 `.agent.md`/`.prompt.md` suffix
+  - `agents + prompts` 모두 비어 있으면 경고(설치는 가능)
 
-**Location**: `kits/{kit_name}/manifest.json`
+### 2) RegistryEntry
 
-```python
-from pydantic import BaseModel, Field
+- Purpose: 사용 가능한 킷 요약 정보
+- Fields:
+  - `name: str`
+  - `version: str`
+  - `description: str | None`
 
-class Manifest(BaseModel):
-    """A kit's manifest.json — declares files to install."""
-    name: str = Field(description="Kit name (e.g., 'testkit')")
-    version: str = Field(description="Semantic version (e.g., '1.0.0')")
-    description: str = Field(default="", description="Human-readable description")
-    agents: list[str] = Field(default_factory=list, description="Agent filenames (e.g., ['testkit.testdesign.agent.md'])")
-    prompts: list[str] = Field(default_factory=list, description="Prompt filenames (e.g., ['testkit.testdesign.prompt.md'])")
-```
+### 3) Registry
 
-**Validation Rules**:
+- Purpose: 원격 레지스트리 루트 객체(`registry.json`)
+- Fields:
+  - `kits: list[RegistryEntry]`
 
-- `name`: non-empty, lowercase, alphanumeric + hyphens
-- `version`: non-empty, semver format preferred
-- `agents` + `prompts`: combined must have at least 1 entry (empty kit → warning)
-- filenames must end with `.agent.md` or `.prompt.md` respectively
+### 4) InstalledKit
 
-**Example**:
+- Purpose: 프로젝트에 설치된 킷 상태 추적(`multikit.toml`)
+- Fields:
+  - `version: str`
+  - `source: str` (기본 `remote`)
+  - `files: list[str]` (`agents/...`, `prompts/...` 상대 경로)
+- Rule:
+  - MVP는 단독 소유 모델. `files` 기준으로 uninstall 대상 계산
 
-```json
-{
-  "name": "testkit",
-  "version": "1.0.0",
-  "description": "Test design and coverage agents",
-  "agents": ["testkit.testdesign.agent.md", "testkit.testcoverage.agent.md"],
-  "prompts": ["testkit.testdesign.prompt.md", "testkit.testcoverage.prompt.md"]
-}
-```
+### 5) MultikitConfig
 
----
+- Purpose: 로컬 설정 루트
+- Fields:
+  - `version: str`
+  - `registry_url: str`
+  - `kits: dict[str, InstalledKit]`
 
-### 2. RegistryEntry (레지스트리 항목)
+## Relationships
 
-`registry.json`의 개별 킷 항목.
+- `Registry` 1:N `RegistryEntry`
+- `RegistryEntry(name)` 1:1 `Manifest(name)`
+- `MultikitConfig` 1:N `InstalledKit`
 
-```python
-class RegistryEntry(BaseModel):
-    """A single kit entry in registry.json."""
-    name: str = Field(description="Kit name")
-    version: str = Field(description="Latest available version")
-    description: str = Field(default="", description="Short description")
-```
+## State Transitions
 
----
+### Install
 
-### 3. Registry (레지스트리)
+1. config 로드
+2. manifest 조회
+3. tempdir 전체 다운로드
+4. 충돌 시 diff + `[y/n/a/s]` 또는 `--force`
+5. 반영 성공 시 `kits.<name>` 갱신
+6. 실패 시 tempdir 삭제, 로컬 파일 불변
 
-원격 `registry.json`의 루트 객체. 사용 가능한 킷 전체 목록.
+### Uninstall
 
-**Location**: `kits/registry.json`
+1. config 로드
+2. `kits.<name>.files` 조회
+3. 파일 삭제 시도
+4. 공유 참조 감지 예외 시 파일 보존 + 경고
+5. `kits.<name>` 섹션 제거
 
-```python
-class Registry(BaseModel):
-    """Remote registry.json — lists all available kits."""
-    kits: list[RegistryEntry] = Field(default_factory=list, description="Available kits")
-```
+### Diff
 
-**Example**:
+1. config/manifest/remote 파일 조회
+2. 로컬 파일과 unified diff 생성
+3. 변경 없음이면 `No changes detected`
 
-```json
-{
-  "kits": [
-    {
-      "name": "testkit",
-      "version": "1.0.0",
-      "description": "Test design and coverage agents"
-    },
-    {
-      "name": "gitkit",
-      "version": "1.0.0",
-      "description": "Git commit agents"
-    },
-    {
-      "name": "speckit",
-      "version": "2.0.0",
-      "description": "Spec/plan/tasks workflow agents"
-    }
-  ]
-}
-```
-
----
-
-### 4. InstalledKit (설치된 킷 기록)
-
-`multikit.toml`의 `[multikit.kits.<name>]` 섹션에 대응.
-
-```python
-class InstalledKit(BaseModel):
-    """Tracks an installed kit in multikit.toml."""
-    version: str = Field(description="Installed version")
-    source: str = Field(default="remote", description="Installation source ('remote')")
-    files: list[str] = Field(default_factory=list, description="List of installed file paths relative to .github/")
-```
-
-**Note**: `files` 필드는 uninstall 시 정확한 파일 삭제를 위해 설치된 파일 경로를 추적한다.
-
----
-
-### 5. MultikitConfig (프로젝트 설정)
-
-`multikit.toml`의 전체 구조에 대응.
-
-```python
-class MultikitConfig(BaseModel):
-    """Root config model for multikit.toml."""
-    version: str = Field(default="0.1.0", description="Multikit config version")
-    registry_url: str = Field(
-        default="https://raw.githubusercontent.com/devcomfort/multikit/main/kits",
-        description="Base URL for the remote kit registry",
-    )
-    kits: dict[str, InstalledKit] = Field(default_factory=dict, description="Installed kits")
-```
-
-**TOML Representation**:
+## Example TOML
 
 ```toml
 [multikit]
@@ -153,66 +90,9 @@ registry_url = "https://raw.githubusercontent.com/devcomfort/multikit/main/kits"
 version = "1.0.0"
 source = "remote"
 files = [
-    "agents/testkit.testdesign.agent.md",
-    "agents/testkit.testcoverage.agent.md",
-    "prompts/testkit.testdesign.prompt.md",
-    "prompts/testkit.testcoverage.prompt.md",
+  "agents/testkit.testdesign.agent.md",
+  "agents/testkit.testcoverage.agent.md",
+  "prompts/testkit.testdesign.prompt.md",
+  "prompts/testkit.testcoverage.prompt.md",
 ]
-
-[multikit.kits.gitkit]
-version = "1.0.0"
-source = "remote"
-files = [
-    "agents/gitkit.commit.agent.md",
-    "prompts/gitkit.commit.prompt.md",
-]
-```
-
----
-
-## State Transitions
-
-### Kit Lifecycle
-
-```
-                    multikit install
-  [Not Installed] ─────────────────→ [Installed]
-        ↑                                │
-        │     multikit uninstall         │
-        └────────────────────────────────┘
-
-  [Installed] ──── multikit install (재실행) ───→ [Installed] (diff + 선택적 업데이트)
-  [Installed] ──── multikit diff ───→ [Installed] (상태 변경 없음, 정보 출력만)
-```
-
-### Install Flow (Atomic)
-
-```
-  [Start]
-    │
-    ▼
-  Fetch manifest.json from remote
-    │
-    ├─ 404 / network error → [Error: Kit not found] → [End]
-    │
-    ▼
-  Download all files to tempdir
-    │
-    ├─ Any download fails → cleanup tempdir → [Error] → [End]
-    │
-    ▼
-  Compare with existing local files (if any)
-    │
-    ├─ No local files → move all to .github/ → update config → [Success]
-    │
-    ├─ Has differences + --force → overwrite all → update config → [Success]
-    │
-    └─ Has differences + interactive →
-         For each file:
-           Show diff → prompt [y/n/a/s]
-           y → overwrite this file
-           n → skip this file
-           a → overwrite all remaining
-           s → skip all remaining
-       → update config (with actually installed files) → [Success]
 ```
