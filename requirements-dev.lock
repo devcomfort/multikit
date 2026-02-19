@@ -126,7 +126,7 @@ typing-extensions==4.15.0
     # via virtualenv
 typing-inspection==0.4.2
     # via pydantic
-virtualenv==20.37.0
+virtualenv==20.38.0
     # via tox
 wcwidth==0.6.0
     # via prompt-toolkit
