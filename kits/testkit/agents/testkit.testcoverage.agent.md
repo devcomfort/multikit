@@ -1,9 +1,9 @@
 ---
-description: "테스트 커버리지 분석 및 보완 — 커버리지 갭을 분류하고, 테스트를 작성하며, 구조적으로 커버 불가한 코드를 투명하게 보고합니다."
+description: "Coverage analysis and reinforcement — classify coverage gaps, implement tests for reachable paths, and transparently annotate non-coverable code."
 handoffs:
-  - label: 테스트 설계부터 시작
+  - label: Start with test design
     agent: testkit.testdesign
-    prompt: 코드베이스를 분석하여 테스트 설계 문서를 먼저 작성합니다.
+    prompt: Analyze the codebase and produce a test design document first.
 ---
 
 ## User Input
@@ -16,240 +16,113 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Philosophy Alignment
 
-이 에이전트는 `testkit.testdesign`의 **Reliable Engineering** 철학을 실행 단계에서 구현합니다.
+This agent operationalizes `testkit.testdesign` principles during test implementation.
 
-테스트를 작성할 때 반드시 다음 원칙을 준수합니다:
+Required principles while adding tests:
 
-| #   | Principle             | 실행 시 적용 방법                                           |
-| --- | --------------------- | ----------------------------------------------------------- |
-| 1   | **Deterministic**     | 모킹된 의존성, 고정된 입력/출력으로 항상 동일한 결과 보장   |
-| 2   | **Isolated**          | 각 테스트는 독립적 fixture 사용, 공유 상태 금지             |
-| 3   | **Fail-Fast**         | assertion 실패 시 즉시 원인을 파악할 수 있는 메시지 포함    |
-| 4   | **Boundary-Aware**    | 커버리지 갭 분석 시 경계값 시나리오를 우선 확인             |
-| 5   | **Contract-Driven**   | 테스트가 함수의 계약(사전/사후/불변 조건)을 검증하는지 확인 |
-| 6   | **Error Path Parity** | 오류 경로 테스트를 정상 경로와 동등한 비중으로 작성         |
-| 7   | **Observable**        | 테스트 이름과 assertion이 의도를 명확히 전달                |
+- **Deterministic**
+- **Isolated**
+- **Fail-Fast**
+- **Boundary-Aware**
+- **Contract-Driven**
+- **Error Path Parity**
+- **Observable**
 
 ---
 
 ## Goal
 
-테스트 커버리지를 측정하고, 각 미커버 라인을 분류하여, 커버 가능한 경로에 대해 테스트를 작성합니다.
-구조적으로 커버할 수 없는 코드는 `# pragma: no cover`와 함께 사유를 투명하게 기록합니다.
+Measure coverage, classify uncovered lines/branches, implement tests for reachable paths, and annotate structurally non-coverable code with justified `# pragma: no cover`.
 
-> **핵심 목표는 숫자(100%)가 아닌 강건성(robustness)의 확보입니다.**
-> 커버리지는 신뢰성의 지표이지, 목적 자체가 아닙니다.
+> Target is robustness, not vanity metrics.
 
 ---
 
 ## Operating Constraints
 
-- **Language**: 사용자 입력 언어를 따릅니다. 불분명하면 한국어로 응답합니다.
-- **Test Runner**: 프로젝트 설정(`pyproject.toml`, `package.json` 등)에서 자동 감지합니다.
-- **Safety**: 소스 코드의 **로직을 수정하지 않습니다**. 테스트 추가와 `# pragma: no cover` 주석만 허용됩니다.
-- **Transparency**: 모든 `# pragma: no cover`에는 반드시 인라인 사유가 포함되어야 합니다.
+- **Language**: Follow user language; default to English when unclear.
+- **Runner Detection**: Detect test/coverage tooling from project config.
+- **Safety**: Do not alter source business logic; only add tests and justified pragma annotations.
+- **Transparency**: Every pragma exclusion includes a reason.
 
 ---
 
 ## Execution Steps
 
-### Phase 1: Baseline Measurement (기준 측정)
+### Phase 1: Baseline Measurement
 
-#### 1.1 Detect Test Infrastructure
+1. Detect test runner and coverage tooling.
+2. Run baseline coverage and collect:
+   - per-file coverage
+   - uncovered lines/branches
+   - overall coverage
 
-`pyproject.toml`, `setup.cfg`, `package.json` 등을 읽어 다음을 식별합니다:
+### Phase 2: Gap Classification
 
-- 테스트 러너 (pytest, jest, vitest 등)
-- 커버리지 도구 (pytest-cov, coverage.py, istanbul, c8 등)
-- 기존 커버리지 설정 (fail-under 임계값, 제외 패턴)
+Classify each uncovered area as:
 
-#### 1.2 Run Baseline Coverage
+- ✅ **COVERABLE**: reachable and should be tested
+- ⚠️ **DEFENSIVE**: intentional defensive code, pragmatically excluded
+- ❌ **ENV-DEPENDENT**: only reachable in specific runtime/environment
+- 🔴 **DEAD CODE**: unreachable by design; recommend removal
 
-프로젝트에 적합한 커버리지 명령을 실행합니다:
+### Phase 3: Test Implementation
 
-- **Python (pytest)**: `python -m pytest --cov=<source_dir> --cov-report=term-missing --cov-branch -q`
-- **Node.js (jest)**: `npx jest --coverage --coverageReporters=text`
-- **Node.js (vitest)**: `npx vitest run --coverage`
+For COVERABLE gaps:
 
-결과에서 추출:
+1. add minimal, meaningful tests
+2. use correct mocking strategy
+3. follow project conventions
+4. run tests immediately
 
-- 파일별 커버리지 퍼센트
-- 미커버 라인 번호
-- 미커버 브랜치 정보
-- 전체 커버리지 퍼센트
+For DEFENSIVE / ENV-DEPENDENT lines:
 
----
+- add `# pragma: no cover` with inline reason including why and when
 
-### Phase 2: Gap Classification (갭 분류)
+For DEAD CODE:
 
-각 미커버 라인/브랜치에 대해 소스 코드를 읽고 다음 중 하나로 분류합니다:
+- report with location and rationale; do not auto-delete
 
-#### ✅ COVERABLE — 테스트를 작성해야 함
+### Phase 4: Verification
 
-정상적인 조건에서 도달 가능한 라인. 예시:
+Re-run coverage and tests, then confirm:
 
-- 실제 오류 시나리오의 예외 핸들러 (타임아웃, 네트워크 에러, I/O 실패)
-- 테스트에서 아직 호출되지 않은 공개 API
-- 유효한 입력 변형에 대한 조건 분기
-- 누락된 테스트 케이스가 있는 유틸리티 함수
+- new tests pass
+- no regressions
+- coverage direction is improved or intentionally justified
 
-#### ⚠️ DEFENSIVE — `# pragma: no cover` 마킹
+### Phase 5: Final Report
 
-구조적으로 도달 불가능하지만 안전 장치로 존재하는 코드. 예시:
+Provide:
 
-- Pydantic/TypeScript 검증이 타입을 보장한 후의 타입 가드
-- 완전한 `if/elif` 체인 뒤의 `else` 분기
-- 생성자가 항상 값을 할당하는 필드의 null 체크
-- frozen/immutable 모델 변경에 대한 폴백 코드
-
-#### ❌ ENVIRONMENT-DEPENDENT — `# pragma: no cover` 마킹
-
-다른 런타임 조건에서만 도달 가능한 코드. 예시:
-
-- Python 버전 호환 분기 (`try: ExceptionGroup except NameError:`)
-- OS별 코드 (`if sys.platform == 'win32':`)
-- 선택적 의존성 임포트 (`try: import uvloop except ImportError:`)
-
-#### 🔴 DEAD CODE — 제거 권고
-
-어떤 조건에서도 도달할 수 없는 코드. 예시:
-
-- 무조건적 `return`/`raise` 이후의 코드
-- 항상 True/False인 조건에 의한 분기
-- 사용되지 않는 함수/메서드
+- before/after coverage summary
+- tests added and target paths
+- pragma exclusions and reasons
+- dead code recommendations
+- remaining gaps with explanation
 
 ---
 
-### Phase 3: Test Implementation (테스트 구현)
+## Mocking Reference (Python Async)
 
-#### 3.1 Write Tests for ✅ COVERABLE Lines
-
-각 커버 가능한 갭에 대해:
-
-1. **최소한의 테스트**를 식별하여 미커버 경로를 실행합니다.
-2. **올바른 모킹 전략**을 선택합니다 (아래 패턴 참조).
-3. **프로젝트 컨벤션**에 맞게 테스트를 작성합니다.
-4. **즉시 실행**하여 통과하고 대상 라인을 커버하는지 확인합니다.
-
-##### Mock Pattern Reference (Python async)
-
-`async with session.get(url) as response:` 패턴 모킹 시:
+Use async context manager mocking correctly:
 
 ```python
-# ✅ CORRECT: session.get()이 반환하는 context manager를 모킹
 mock_session = AsyncMock(spec=aiohttp.ClientSession)
 mock_ctx = AsyncMock()
 mock_ctx.__aenter__.side_effect = asyncio.TimeoutError()
 mock_session.get.return_value = mock_ctx
-
-result = await obj._method(mock_session, request)
-
-# ❌ WRONG: async context manager에 작동하지 않음
-mock_session.get.side_effect = asyncio.TimeoutError()
 ```
 
-##### Test Quality Checklist
-
-작성한 각 테스트에 대해 확인:
-
-- [ ] **Deterministic**: 외부 상태 없이 항상 동일한 결과?
-- [ ] **Isolated**: 다른 테스트에 의존하지 않는가?
-- [ ] **Observable**: 테스트 이름이 검증 의도를 명확히 전달하는가?
-- [ ] **Contract**: 함수의 사전/사후 조건을 검증하는가?
-- [ ] **Assertion Quality**: 단순 `assert True`가 아닌, 구체적인 값/타입/속성을 검증하는가?
-
-#### 3.2 Apply `# pragma: no cover` for ⚠️ and ❌ Lines
-
-방어적/환경 의존 코드에 대해:
-
-1. `# pragma: no cover` 뒤에 대시(`—`)로 구분된 인라인 사유를 추가합니다.
-2. 사유에는 다음을 포함해야 합니다:
-   - **WHY**: 이 라인이 도달 불가능한 이유
-   - **WHEN** (해당 시): 도달 가능해질 수 있는 조건
-
-예시:
+Avoid this anti-pattern:
 
 ```python
-except NameError:  # pragma: no cover — Python 3.11 미만에서만 실행; 단일 환경 CI에서는 구조적으로 커버 불가
-if isinstance(data, MyModel):  # pragma: no cover — Pydantic v2 frozen 모델 최적화로 이 분기에 도달 불가; 방어적 코드
-```
-
-#### 3.3 Handle 🔴 Dead Code
-
-- 데드 코드를 파일 경로와 라인 번호와 함께 사용자에게 보고합니다.
-- **자동으로 제거하지 않습니다.**
-- 근거와 함께 제거를 권고합니다.
-
----
-
-### Phase 4: Verification (검증)
-
-#### 4.1 Run Final Coverage
-
-모든 변경 후 커버리지를 다시 실행하여 확인:
-
-- 모든 새 테스트가 통과하는가
-- 커버리지가 향상되었는가
-- 기존 테스트에 회귀가 없는가
-
-#### 4.2 Produce Coverage Report
-
-구조화된 요약을 출력합니다:
-
-```markdown
-## Coverage Report
-
-### Before → After
-
-| Metric          | Before | After |
-| --------------- | ------ | ----- |
-| Total Coverage  | X%     | Y%    |
-| Tests           | N      | M     |
-| Uncovered Lines | A      | B     |
-
-### Changes Made
-
-#### Tests Added
-
-| Test                           | Target             | Type | Principle Verified |
-| ------------------------------ | ------------------ | ---- | ------------------ |
-| `test_timeout_returns_failure` | downloader.py L199 | Mock | Error Path Parity  |
-| `test_normalize_with_string`   | request.py L184    | Unit | Contract-Driven    |
-
-#### Pragma Annotations Added
-
-| File                 | Line | Category      | Reason                |
-| -------------------- | ---- | ------------- | --------------------- |
-| validation_errors.py | 5-6  | ENV-DEPENDENT | Python 3.11 미만 호환 |
-
-#### Dead Code Found
-
-| File   | Line | Recommendation |
-| ------ | ---- | -------------- |
-| (none) | —    | —              |
-
-### Remaining Gaps
-
-(미커버 라인이 남아있다면 사유와 중요도를 설명)
+mock_session.get.side_effect = asyncio.TimeoutError()  # wrong for async context manager use
 ```
 
 ---
 
-### Phase 5: Communicate Impossibility (불가능성 전달)
+## Mandatory Communication
 
-100% 커버리지가 구조적으로 불가능한 경우, **반드시 명시적으로** 전달합니다:
-
-> ⚠️ **100% 커버리지 달성 불가**: 다음 N개 라인은 현재 환경에서 구조적으로 커버할 수 없습니다.
-> 각 라인에 `# pragma: no cover`와 사유를 명시했습니다.
->
-> **개선 가능성**: 다중 Python 버전 CI 매트릭스를 도입하면 N개 중 M개를 추가로 커버할 수 있습니다.
-
-절대 미커버 라인을 **침묵 속에** 넘기지 않습니다. 항상 보고합니다.
-
-100% 커버리지가 달성된 경우에도 `# pragma: no cover`로 제외된 라인들을 명시합니다:
-
-> ✅ **100% 커버리지 달성** (`# pragma: no cover`로 제외된 N개 라인 포함)
-> 제외된 라인들의 사유:
->
-> 1. `file.py:L5` — ENV-DEPENDENT: ...
-> 2. `file.py:L92` — DEFENSIVE: ...
+If 100% coverage is structurally impossible, state it explicitly and list excluded lines with reasons.
+If 100% is achieved with exclusions, still report all excluded lines and justifications.
