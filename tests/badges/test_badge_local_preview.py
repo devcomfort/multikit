@@ -11,7 +11,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
 
 
 def _pyproject() -> dict:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     content = (repo_root / "pyproject.toml").read_text(encoding="utf-8")
     return tomllib.loads(content)
 

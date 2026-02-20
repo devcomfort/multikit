@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def _readme() -> str:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     return (repo_root / "README.md").read_text(encoding="utf-8")
 
 
