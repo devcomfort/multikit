@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from multikit.cli import app
+from multikit.cli import app, default_action
 
 
 class TestCLIApp:
@@ -22,3 +22,15 @@ class TestCLIApp:
         assert ("uninstall",) in command_names
         assert ("list",) in command_names
         assert ("diff",) in command_names
+
+    def test_default_action_prints_help(self, monkeypatch) -> None:
+        called = {"help": False}
+
+        def _fake_help_print(_self) -> None:
+            called["help"] = True
+
+        monkeypatch.setattr(type(app), "help_print", _fake_help_print)
+
+        default_action()
+
+        assert called["help"] is True
