@@ -6,15 +6,15 @@ import sys
 from pathlib import Path
 
 # Python 3.11+ has tomllib in stdlib
-if sys.version_info >= (3, 11):
+if sys.version_info >= (3, 11):  # pragma: no cover - runs only on Python 3.11+
     import tomllib
 else:
     try:
         import tomli as tomllib  # type: ignore[no-redef]
-    except ImportError:
+    except ImportError:  # pragma: no cover - defensive: optional dependency missing
         raise ImportError(
             "Python <3.11 requires 'tomli'. Install with: pip install tomli"
-        )
+        )  # pragma: no cover - same defensive path as above
 
 import tomli_w
 
