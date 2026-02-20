@@ -30,6 +30,18 @@ jobs:
       - name: Run tests with tox
         run: tox
 
+      - name: Run coverage and generate report
+        if: matrix.python-version == '3.13'
+        run: tox -e coverage
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.13'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          verbose: false
+
   lint:
     runs-on: ubuntu-latest
     steps:
