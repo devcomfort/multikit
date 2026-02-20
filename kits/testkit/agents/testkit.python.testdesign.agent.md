@@ -2,8 +2,11 @@
 description: "Reliable Engineering-based test design — analyze the codebase and produce a structured test design document describing what to test, why, and how."
 handoffs:
   - label: Coverage analysis and test implementation
-    agent: testkit.testcoverage
+    agent: testkit.python.testcoverage
     prompt: Use the test design document to perform coverage-gap analysis and implement tests.
+  - label: Generate Spike and Sanity test demo code
+    agent: testkit.python.demobuilder
+    prompt: Generate Spike and Sanity test demo code within `if __name__ == '__main__':` blocks.
 ---
 
 ## User Input
@@ -30,6 +33,7 @@ It is not line-coverage oriented only; it focuses on contract confidence and fai
 | 5   | **Contract-Driven**   | Encode preconditions, postconditions, and invariants as tests.               |
 | 6   | **Error Path Parity** | Give error paths equal priority to happy paths.                              |
 | 7   | **Observable**        | Names and assertions should explain failures immediately.                    |
+| 8   | **Bottom-Up Testing** | Verify atomic components first, then progressively test integrated modules.  |
 
 ---
 

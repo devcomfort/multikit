@@ -2,7 +2,7 @@
 description: "Coverage analysis and reinforcement — classify coverage gaps, implement tests for reachable paths, and transparently annotate non-coverable code."
 handoffs:
   - label: Start with test design
-    agent: testkit.testdesign
+    agent: testkit.python.testdesign
     prompt: Analyze the codebase and produce a test design document first.
 ---
 

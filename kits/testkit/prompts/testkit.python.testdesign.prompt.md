@@ -1,6 +1,6 @@
 ```prompt
 ---
-agent: testkit.testdesign
+agent: testkit.python.testdesign
 ---
 
 Analyze the code based on Reliable Engineering principles and produce a test design document.
