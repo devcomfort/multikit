@@ -1,6 +1,8 @@
 # multikit
 
 ![CI](https://github.com/devcomfort/multikit/actions/workflows/ci.yml/badge.svg)
+[![Coverage](https://codecov.io/gh/devcomfort/multikit/branch/main/graph/badge.svg)](https://codecov.io/gh/devcomfort/multikit)
+[![Python Support](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/devcomfort/multikit/actions/workflows/ci.yml)
 
 multikit은 VS Code GitHub Copilot용 에이전트/프롬프트 자산을 프로젝트 단위로 설치·관리하기 위한 CLI입니다.
 `multikit install testkit` 한 줄로 필요한 파일을 `.github/agents/`, `.github/prompts/`에 배치하고,
@@ -196,9 +198,13 @@ rye sync
 rye run test
 rye run test:cov
 rye run test:tox
+rye run badge:preview
 rye run lint
 rye run format
 ```
+
+`rye run badge:preview`는 로컬에서 커버리지 퍼센트와 `coverage.xml` 아티팩트를 생성하여
+README 커버리지 배지에 반영될 값을 푸시 전에 확인할 수 있게 해줍니다.
 
 ### 아키텍처 개요
 
