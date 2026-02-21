@@ -46,3 +46,6 @@ htmlcov/
 
 # Multikit local config
 multikit.toml
+
+# Personal
+TODO.md
