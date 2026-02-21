@@ -15,6 +15,11 @@
 - Q: `multikit list`가 보여주는 "사용 가능한 킷" 목록의 소스는? → A: registry.json — 원격 리포지토리 루트에 `registry.json`(킷 이름/버전 목록)을 두고, `list` 시 이를 GET하여 전체 목록 표시.
 - Q: `multikit install` 도중 네트워크 오류로 일부 파일만 다운로드된 경우 롤백 전략은? → A: Atomic (임시 디렉토리) — 모든 파일을 임시 디렉토리에 먼저 다운로드하고, 전부 성공 시에만 `.github/`로 이동. 실패 시 임시 파일 삭제.
 
+### Session 2026-02-20
+
+- Q: `uninstall` 시 파일 삭제 정책은 어떻게 처리하는가? → A: MVP에서는 단독 소유만 처리한다. `multikit.toml`의 킷별 `files` 목록 기준으로 해당 킷 파일만 삭제하며, 공유 소유(ownership) 모델은 필요 시 Post-MVP로 도입한다.
+- Q: `multikit install <kit>`의 버전 선택 정책은 무엇인가? → A: MVP에서는 항상 원격 최신 버전을 조회/설치한다. 버전 고정(pinning)이나 별도 업그레이드 명령은 Post-MVP 범위다.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - 프로젝트 초기화 (Priority: P1)
@@ -48,6 +53,7 @@
 3. **Given** 이미 testkit이 설치된 프로젝트, **When** `multikit install testkit` 실행, **Then** 로컬과 원격 파일의 차이를 파일별로 diff 형식으로 표시하고, 각 파일에 대해 덮어쓰기 여부를 개별 확인한다. `--force` 플래그 시 확인 없이 모두 덮어쓴다.
 4. **Given** 존재하지 않는 킷 이름, **When** `multikit install invalidkit` 실행, **Then** 명확한 에러 메시지를 출력하고 파일 시스템을 변경하지 않음.
 5. _(이 시나리오는 User Story 5 — 킷 변경 사항 확인에서 다룹니다. US5-AS2 참조.)_
+6. **Given** 동일 킷의 새 버전이 원격에 게시된 상태, **When** `multikit install testkit` 재실행, **Then** 로컬 설치 버전과 무관하게 원격 최신 버전을 기준으로 비교/설치를 수행한다.
 
 ---
 
@@ -77,9 +83,10 @@
 
 **Acceptance Scenarios**:
 
-1. **Given** testkit이 설치된 프로젝트, **When** `multikit uninstall testkit` 실행, **Then** `.github/agents/testkit.*.agent.md`와 `.github/prompts/testkit.*.prompt.md` 파일이 삭제됨.
+1. **Given** testkit이 설치된 프로젝트, **When** `multikit uninstall testkit` 실행, **Then** testkit의 단독 소유 파일(`.github/agents/testkit.*.agent.md`, `.github/prompts/testkit.*.prompt.md`)은 삭제됨.
 2. **Given** testkit이 설치된 프로젝트, **When** `multikit uninstall testkit` 실행, **Then** `multikit.toml`에서 `[multikit.kits.testkit]` 섹션이 제거됨.
 3. **Given** 설치되지 않은 킷, **When** `multikit uninstall unknownkit` 실행, **Then** 에러 메시지 출력, 파일 시스템 변경 없음.
+4. **Given** 예상치 못한 파일 공유 상황(수동 편집/외부 도구로 인한 중복 참조)이 감지될 때, **When** `multikit uninstall testkit` 실행, **Then** 공유 파일은 삭제하지 않고 경고 메시지로 ownership 모델이 MVP 범위 밖임을 안내한다.
 
 ---
 
@@ -108,6 +115,7 @@
 - **빈 킷**: 에이전트/프롬프트 파일이 하나도 없는 킷을 install하면 경고를 출력.
 - **대용량 파일**: 에이전트 파일이 비정상적으로 클 경우 (>1MB) 경고를 출력.
 - **multikit.toml 손상**: TOML 파싱 실패 시 백업 후 명확한 에러 메시지 출력.
+- **공유 파일 삭제 위험**: 기본 킷 구성에서는 단독 소유를 가정한다. 예외적으로 공유가 감지되면 삭제를 수행하지 않고 경고를 출력한다 (Post-MVP ownership 모델 대상).
 
 ## Requirements _(mandatory)_
 
@@ -117,7 +125,7 @@
 - **FR-002**: `multikit install <kit>` 명령은 `httpx` 라이브러리를 사용하여 `raw.githubusercontent.com`에서 킷의 매니페스트를 조회하고 파일을 다운로드해야 한다.
 - **FR-003**: `multikit install <kit>` 명령은 다운로드한 에이전트 파일을 `.github/agents/`에, 프롬프트 파일을 `.github/prompts/`에 배치해야 한다.
 - **FR-004**: `multikit install <kit>` 명령은 설치 기록을 `multikit.toml`에 기록해야 한다 (킷 이름, 버전, 소스).
-- **FR-005**: `multikit uninstall <kit>` 명령은 해당 킷의 파일만 정확히 삭제하고 설정에서 제거해야 한다.
+- **FR-005**: `multikit uninstall <kit>` 명령은 `multikit.toml`의 해당 킷 `files` 목록 기준으로 단독 소유 파일만 삭제하고 설정에서 제거해야 한다. 공유 참조가 감지되는 예외 상황에서는 삭제하지 않고 경고해야 한다.
 - **FR-006**: `multikit list` 명령은 원격 `registry.json`(`https://raw.githubusercontent.com/{owner}/{repo}/{branch}/kits/registry.json`)을 GET하여 사용 가능한 전체 킷 목록을 조회하고, `multikit.toml`과 대조하여 설치 상태를 테이블로 출력해야 한다. 네트워크 오류 시 로컬 설치 킷만 표시하고 경고를 출력해야 한다.
 - **FR-007**: CLI는 `cyclopts` 프레임워크를 사용하여 타입 힌트 기반으로 정의해야 한다.
 - **FR-008**: 모든 네트워크 오류는 비정상 종료 없이 사용자 친화적 에러 메시지로 처리해야 한다.
@@ -126,12 +134,13 @@
 - **FR-011**: `multikit diff <kit>` 명령은 설치된 킷의 로컬 파일과 원격 최신 버전을 비교하여 파일별 diff를 출력해야 한다. 로컬 수정(사용자 편집)과 원격 업데이트(레포지토리 변경) 양쪽을 모두 감지해야 한다.
 - **FR-012**: `multikit install` 시 로컬 파일이 원격과 다를 경우, 파일별로 diff를 표시하고 `[y(덮어쓰기)/n(건너뛰기)/a(모두 덮어쓰기)/s(모두 건너뛰기)]` 대화식 확인을 수행해야 한다. `--force` 플래그로 확인 없이 전체 덮어쓰기가 가능해야 한다.
 - **FR-013**: `multikit install`은 원자적(atomic) 설치를 수행해야 한다. 모든 킷 파일을 임시 디렉토리에 먼저 다운로드한 후, 전부 성공 시에만 `.github/agents/`와 `.github/prompts/`로 이동한다. 다운로드 실패 시 임시 파일을 삭제하고 기존 프로젝트 파일을 변경하지 않는다.
+- **FR-014**: `multikit install <kit>`은 항상 원격 최신 버전을 기준으로 동작해야 한다. 현재 로컬에 기록된 버전은 상태 표시/비교에 사용하되 버전 pinning 동작은 제공하지 않는다.
 
 ### Key Entities
 
 - **Kit**: 재사용 가능한 에이전트+프롬프트 번들. 속성: name, version, files (agents[], prompts[]), source.
 - **Registry**: 킷이 호스팅되는 원격 저장소. MVP에서는 단일 GitHub 리포지토리. 루트에 `registry.json`을 두어 사용 가능한 킷 목록을 선언. 스키마: `{kits: [{name: string, version: string, description?: string}, ...]}`.
-- **Config (multikit.toml)**: 프로젝트별 설치 상태를 추적하는 설정 파일. 설치된 킷 목록과 버전 정보 포함.
+- **Config (multikit.toml)**: 프로젝트별 설치 상태를 추적하는 설정 파일. 설치된 킷 목록, 버전 정보, 킷별 설치 파일 목록을 포함하며 uninstall/delete 대상 계산의 기준이 된다.
 - **Manifest (manifest.json)**: 킷 루트에 위치하는 메타데이터 파일. 스키마: `{name: string, version: string, description?: string, agents: string[], prompts: string[]}`. `install` 시 `raw.githubusercontent.com/.../kits/{kit}/manifest.json`을 먼저 GET하여 파일 목록을 확인한 후 개별 파일을 다운로드한다.
 
 ## Non-Functional Requirements
@@ -152,6 +161,6 @@
 
 - **SC-001**: 신규 사용자가 `pip install multikit && multikit init && multikit install testkit` 3개 명령으로 에이전트를 설치할 수 있다.
 - **SC-002**: `multikit install`로 설치된 `.github/agents/*.agent.md` 파일이 VS Code Copilot Chat에서 에이전트로 인식된다.
-- **SC-003**: `multikit uninstall` 후 해당 킷의 파일이 완전히 제거되고 `multikit.toml`에 흔적이 남지 않는다.
+- **SC-003**: `multikit uninstall` 후 해당 킷의 파일이 제거되고 `multikit.toml`에서 해당 킷 섹션이 제거되어야 한다. 공유 참조 예외가 감지되면 파일은 보존되고 경고가 출력되어야 한다.
 - **SC-004**: 네트워크 오류 시 `multikit install`이 비정상 종료(crash) 없이 에러 메시지를 출력하고 exit code 1을 반환한다.
 - **SC-005**: MVP 범위의 모든 CLI 명령에 대해 테스트 커버리지 ≥ 90%를 달성한다.

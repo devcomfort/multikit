@@ -14,6 +14,16 @@
       "name": "lintkit",
       "version": "1.0.0",
       "description": "Code analysis and linting agents"
+    },
+    {
+      "name": "speckit",
+      "version": "1.0.0",
+      "description": "Specification analysis and clarification agents"
+    },
+    {
+      "name": "multikit",
+      "version": "1.0.0",
+      "description": "Meta-kit for generating and managing multikit agents"
     }
   ]
 }

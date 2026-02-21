@@ -3,9 +3,9 @@
     "version": "1.0.0",
     "description": "Code analysis and linting agents",
     "agents": [
-        "lintkit.analyze.agent.md"
+        "lintkit.analyze.python.agent.md"
     ],
     "prompts": [
-        "lintkit.analyze.prompt.md"
+        "lintkit.analyze.python.prompt.md"
     ]
 }

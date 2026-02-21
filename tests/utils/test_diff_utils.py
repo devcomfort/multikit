@@ -65,6 +65,11 @@ class TestPrintColoredDiff:
         captured = capsys.readouterr()
         assert captured.out == ""
 
+    def test_appends_trailing_newline_when_missing(self, capsys) -> None:
+        print_colored_diff(["+line-without-newline"])
+        captured = capsys.readouterr()
+        assert captured.out.endswith("\n")
+
 
 class TestShowDiff:
     """Tests for show_diff."""
@@ -111,6 +116,10 @@ class TestPromptOverwrite:
     def test_answer_all_word(self, monkeypatch) -> None:
         monkeypatch.setattr("builtins.input", lambda _: "all")
         assert prompt_overwrite("file.md") == "a"
+
+    def test_answer_skip_word(self, monkeypatch) -> None:
+        monkeypatch.setattr("builtins.input", lambda _: "skip")
+        assert prompt_overwrite("file.md") == "s"
 
     def test_eof_returns_skip(self, monkeypatch) -> None:
         def raise_eof(_):

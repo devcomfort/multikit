@@ -17,6 +17,7 @@ env/
 
 # IDE
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
@@ -27,6 +28,7 @@ Thumbs.db
 
 # Testing
 .coverage
+coverage.xml
 htmlcov/
 .pytest_cache/
 .mypy_cache/
@@ -44,3 +46,6 @@ htmlcov/
 
 # Multikit local config
 multikit.toml
+
+# Personal
+TODO.md

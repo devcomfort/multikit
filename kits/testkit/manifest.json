@@ -1,13 +1,15 @@
 {
   "name": "testkit",
   "version": "1.0.0",
-  "description": "Test design and coverage agents",
+  "description": "Test design, coverage, and demo builder agents",
   "agents": [
-    "testkit.testdesign.agent.md",
-    "testkit.testcoverage.agent.md"
+    "testkit.python.testdesign.agent.md",
+    "testkit.python.testcoverage.agent.md",
+    "testkit.python.demobuilder.agent.md"
   ],
   "prompts": [
-    "testkit.testdesign.prompt.md",
-    "testkit.testcoverage.prompt.md"
+    "testkit.python.testdesign.prompt.md",
+    "testkit.python.testcoverage.prompt.md",
+    "testkit.python.demobuilder.prompt.md"
   ]
 }

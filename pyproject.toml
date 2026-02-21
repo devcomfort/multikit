@@ -37,8 +37,9 @@ dev-dependencies = [
 
 [tool.rye.scripts]
 test = "pytest tests/ -v"
-"test:cov" = "pytest tests/ --cov=multikit --cov-report=term-missing"
+"test:cov" = "pytest tests/ --cov=multikit --cov-report=term-missing --cov-report=xml:coverage.xml"
 "test:tox" = "tox"
+"badge:preview" = "pytest tests/ --cov=multikit --cov-report=term --cov-report=xml:coverage.xml -q"
 lint = "ruff check src/ tests/"
 format = "ruff format src/ tests/"
 

@@ -409,3 +409,91 @@ class TestInstallCommandConflicts:
 
         config = load_config(initialized_project)
         assert config.is_installed("testkit")
+
+    @respx.mock
+    def test_install_handles_internal_staging_exception(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Install reports failure when staging/move phase raises unexpectedly."""
+        monkeypatch.chdir(initialized_project)
+
+        respx.get(f"{BASE_URL}/testkit/manifest.json").mock(
+            return_value=httpx.Response(200, json=SAMPLE_MANIFEST)
+        )
+        respx.get(f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md").mock(
+            return_value=httpx.Response(200, text=AGENT_CONTENT)
+        )
+        respx.get(f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md").mock(
+            return_value=httpx.Response(200, text=PROMPT_CONTENT)
+        )
+
+        def _raise_runtime(*_args, **_kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(
+            "multikit.commands.install.move_staged_files", _raise_runtime
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            install_handler("testkit")
+        assert exc_info.value.code == 1
+
+
+class TestInstallCommandInteractive:
+    """Tests for install interactive flow branches."""
+
+    def test_install_interactive_registry_fetch_failure(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Interactive install exits when registry cannot be fetched."""
+        monkeypatch.chdir(initialized_project)
+
+        def _raise_registry(_url: str):
+            raise RuntimeError("registry unavailable")
+
+        monkeypatch.setattr("multikit.commands.install.fetch_registry", _raise_registry)
+
+        with pytest.raises(SystemExit) as exc_info:
+            install_handler()
+        assert exc_info.value.code == 1
+
+    def test_install_interactive_no_selection_exits_zero(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Interactive install exits cleanly when user selects nothing."""
+        monkeypatch.chdir(initialized_project)
+        monkeypatch.setattr(
+            "multikit.commands.install.fetch_registry", lambda _url: object()
+        )
+        monkeypatch.setattr(
+            "multikit.commands.install.select_installable_kits",
+            lambda _config, _registry: [],
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            install_handler()
+        assert exc_info.value.code == 0
+
+    def test_install_interactive_partial_failure_exits_one(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Interactive install exits non-zero when one of selected kits fails."""
+        monkeypatch.chdir(initialized_project)
+        monkeypatch.setattr(
+            "multikit.commands.install.fetch_registry", lambda _url: object()
+        )
+        monkeypatch.setattr(
+            "multikit.commands.install.select_installable_kits",
+            lambda _config, _registry: ["ok-kit", "bad-kit"],
+        )
+
+        def _fake_install(name: str, *_args, **_kwargs) -> bool:
+            return name != "bad-kit"
+
+        monkeypatch.setattr(
+            "multikit.commands.install._install_single_kit", _fake_install
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            install_handler()
+        assert exc_info.value.code == 1

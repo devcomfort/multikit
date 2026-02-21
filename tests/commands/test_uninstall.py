@@ -104,3 +104,40 @@ class TestUninstallCommand:
         with pytest.raises(SystemExit) as exc_info:
             uninstall_handler("testkit")
         assert exc_info.value.code == 1
+
+
+class TestUninstallInteractive:
+    """Tests for interactive uninstall flow."""
+
+    def test_uninstall_interactive_no_selection_exits_zero(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        monkeypatch.chdir(initialized_project)
+        monkeypatch.setattr(
+            "multikit.commands.uninstall.select_installed_kits",
+            lambda _config, action="uninstall": [],
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            uninstall_handler()
+        assert exc_info.value.code == 0
+
+    def test_uninstall_interactive_partial_failure_exits_one(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        monkeypatch.chdir(initialized_project)
+        monkeypatch.setattr(
+            "multikit.commands.uninstall.select_installed_kits",
+            lambda _config, action="uninstall": ["ok-kit", "bad-kit"],
+        )
+
+        def _fake_uninstall(name: str, *_args, **_kwargs) -> bool:
+            return name != "bad-kit"
+
+        monkeypatch.setattr(
+            "multikit.commands.uninstall._uninstall_single_kit", _fake_uninstall
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            uninstall_handler()
+        assert exc_info.value.code == 1
