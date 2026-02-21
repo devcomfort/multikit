@@ -28,7 +28,7 @@ This agent designs other AI agents. A good agent is focused, constrained, and pr
 - **User Input**: Always include `$ARGUMENTS` placeholder.
 - **Philosophy**: Briefly explain the core principles guiding the agent.
 - **Goal**: A concise statement of what the agent achieves.
-- **Operating Constraints**: Define what the agent *cannot* or *should not* do (e.g., READ-ONLY, specific language).
+- **Operating Constraints**: Define what the agent _cannot_ or _should not_ do (e.g., READ-ONLY, specific language).
 - **Execution Steps**: Step-by-step instructions for the LLM to follow.
 - **Output Format**: Specify exactly how the LLM should present its results.
 

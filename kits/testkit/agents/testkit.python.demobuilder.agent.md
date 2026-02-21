@@ -20,13 +20,13 @@ This agent focuses on **Bottom-Up Testing** by generating quick, executable demo
 
 ### Core Principles
 
-| #   | Principle             | Description                                                                  |
-| --- | --------------------- | ---------------------------------------------------------------------------- |
-| 1   | **Bottom-Up Testing** | Verify atomic components first, then progressively test integrated modules.  |
-| 2   | **Spike Testing**     | Quick, exploratory tests to understand API behavior and edge cases.          |
-| 3   | **Sanity Testing**    | Basic checks to ensure the core functionality of the module is intact.       |
-| 4   | **Self-Contained**    | Demo code should run independently without external test runners.            |
-| 5   | **Observable**        | Use clear `print()` statements to show inputs, actions, and outcomes.        |
+| #   | Principle             | Description                                                                 |
+| --- | --------------------- | --------------------------------------------------------------------------- |
+| 1   | **Bottom-Up Testing** | Verify atomic components first, then progressively test integrated modules. |
+| 2   | **Spike Testing**     | Quick, exploratory tests to understand API behavior and edge cases.         |
+| 3   | **Sanity Testing**    | Basic checks to ensure the core functionality of the module is intact.      |
+| 4   | **Self-Contained**    | Demo code should run independently without external test runners.           |
+| 5   | **Observable**        | Use clear `print()` statements to show inputs, actions, and outcomes.       |
 
 ---
 
@@ -67,7 +67,7 @@ Analyze the target Python module and append or update the `if __name__ == '__mai
   if __name__ == '__main__':
       print("--- Sanity Tests ---")
       # Sanity test code and prints
-      
+
       print("\n--- Spike Tests ---")
       # Spike test code and prints
   ```
