@@ -29,11 +29,13 @@ Kit은 특정 목적에 맞춘 에이전트(`*.agent.md`)와 프롬프트(`*.pro
 
 ## 제공 중인 킷
 
-| Kit         | Version | 설명                                                     |
-| ----------- | ------- | -------------------------------------------------------- |
-| **testkit** | 1.0.0   | 테스트 설계 및 커버리지 에이전트 (agents: 2, prompts: 2) |
-| **gitkit**  | 1.0.0   | Git 커밋 에이전트 (agents: 1, prompts: 1)                |
-| **lintkit** | 1.0.0   | 코드 분석 및 린팅 에이전트                               |
+| Kit          | Version | 설명                                                                  |
+| ------------ | ------- | --------------------------------------------------------------------- |
+| **gitkit**   | 1.0.0   | Git 커밋 에이전트 (agents: 1, prompts: 1)                             |
+| **lintkit**  | 1.0.0   | 코드 분석 및 린팅 에이전트 (agents: 1, prompts: 1)                    |
+| **multikit** | 1.0.0   | multikit 에이전트 생성 및 관리를 위한 메타 킷 (agents: 1, prompts: 1) |
+| **speckit**  | 1.0.0   | 요구사항(Spec) 분석 및 구체화 에이전트 (agents: 2, prompts: 2)        |
+| **testkit**  | 1.0.0   | 테스트 설계, 커버리지 및 데모 빌더 에이전트 (agents: 3, prompts: 3)   |
 
 최신 목록은 `multikit list`로 확인할 수 있습니다.
 
@@ -82,11 +84,13 @@ multikit list
 your-project/
 ├── .github/
 │   ├── agents/
-│   │   ├── testkit.testdesign.agent.md
-│   │   └── testkit.testcoverage.agent.md
+│   │   ├── testkit.python.demobuilder.agent.md
+│   │   ├── testkit.python.testcoverage.agent.md
+│   │   └── testkit.python.testdesign.agent.md
 │   └── prompts/
-│       ├── testkit.testdesign.prompt.md
-│       └── testkit.testcoverage.prompt.md
+│       ├── testkit.python.demobuilder.prompt.md
+│       ├── testkit.python.testcoverage.prompt.md
+│       └── testkit.python.testdesign.prompt.md
 └── multikit.toml
 ```
 
@@ -123,11 +127,13 @@ multikit list
 출력 예시:
 
 ```text
-Kit      Status     Version    Agents    Prompts
--------  ---------  ---------  --------  ---------
-testkit  Installed  1.0.0      2         2
-gitkit   Available  1.0.0      —         —
-lintkit  Available  1.0.0      —         —
+Kit       Status     Version    Agents    Prompts
+--------  ---------  ---------  --------  ---------
+testkit   Installed  1.0.0      3         3
+gitkit    Available  1.0.0      —         —
+lintkit   Available  1.0.0      —         —
+multikit  Available  1.0.0      —         —
+speckit   Available  1.0.0      —         —
 ```
 
 ### 4) 변경 비교
@@ -163,10 +169,12 @@ registry_url = "https://raw.githubusercontent.com/devcomfort/multikit/main/kits"
 version = "1.0.0"
 source = "remote"
 files = [
-    "agents/testkit.testdesign.agent.md",
-    "agents/testkit.testcoverage.agent.md",
-    "prompts/testkit.testdesign.prompt.md",
-    "prompts/testkit.testcoverage.prompt.md",
+    "agents/testkit.python.demobuilder.agent.md",
+    "agents/testkit.python.testcoverage.agent.md",
+    "agents/testkit.python.testdesign.agent.md",
+    "prompts/testkit.python.demobuilder.prompt.md",
+    "prompts/testkit.python.testcoverage.prompt.md",
+    "prompts/testkit.python.testdesign.prompt.md",
 ]
 ```
 
