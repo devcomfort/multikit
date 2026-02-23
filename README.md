@@ -29,13 +29,18 @@ Kit은 특정 목적에 맞춘 에이전트(`*.agent.md`)와 프롬프트(`*.pro
 
 ## 제공 중인 킷
 
-| Kit          | Version | 설명                                                                  |
-| ------------ | ------- | --------------------------------------------------------------------- |
-| **gitkit**   | 1.0.0   | Git 커밋 에이전트 (agents: 1, prompts: 1)                             |
-| **lintkit**  | 1.0.0   | 코드 분석 및 린팅 에이전트 (agents: 1, prompts: 1)                    |
-| **multikit** | 1.0.0   | multikit 에이전트 생성 및 관리를 위한 메타 킷 (agents: 1, prompts: 1) |
-| **speckit**  | 1.0.0   | 요구사항(Spec) 분석 및 구체화 에이전트 (agents: 2, prompts: 2)        |
-| **testkit**  | 1.0.0   | 테스트 설계, 커버리지 및 데모 빌더 에이전트 (agents: 3, prompts: 3)   |
+| Kit | Version | 도구 이름 (Agent / Prompt) | 역할 |
+| :--- | :--- | :--- | :--- |
+| **gitkit** | 1.0.0 | `gitkit.commit` | Git 커밋 메시지 자동 작성 및 커밋 수행 |
+| **lintkit** | 1.0.0 | `lintkit.analyze.python` | Python 코드 정적 분석, 린팅 및 개선점 제안 |
+| **multikit** | 1.0.0 | `multikit.generation` | 새로운 multikit 에이전트 및 프롬프트 템플릿 생성 |
+| **speckit** | 1.0.0 | `speckit.analyze` | 요구사항(Spec) 문서 분석 및 리뷰 |
+| | | `speckit.clarify` | 모호한 요구사항 구체화 및 명확화 |
+| **testkit** | 1.0.0 | `testkit.python.testdesign` | Python 코드 기반 테스트 케이스 설계 |
+| | | `testkit.python.testcoverage` | Python 테스트 커버리지 분석 및 누락된 테스트 보완 |
+| | | `testkit.python.demobuilder` | Python 데모 및 예제 코드 작성 |
+
+*※ 각 도구는 `.agent.md`와 `.prompt.md` 파일 쌍으로 제공됩니다.*
 
 최신 목록은 `multikit list`로 확인할 수 있습니다.
 
