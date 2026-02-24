@@ -1,5 +1,5 @@
 ---
-description: Identify ALL underspecified areas in the current feature spec, classify them as no-decision-needed vs decision-needed (with 3-5 options + free-form), and encode answers back into the spec.
+description: Identify ALL underspecified areas in the current feature spec, classify them as no-decision-needed vs decision-needed (with structured options + free-form), and encode answers back into the spec.
 handoffs:
   - label: Build Technical Plan
     agent: speckit.plan
@@ -87,16 +87,16 @@ Execution steps:
 
 3. From the coverage scan, compile a **complete list** of all detected ambiguities and missing decisions. Do NOT apply artificial count limits (no top-5, top-N caps). Classify each finding into one of two categories:
 
-   **Category A — 의사결정 불필요 (No Decision Needed):**
+   **Category A — No Decision Needed:**
    Issues with a single, objectively correct fix (e.g., remove stale placeholder, normalize terminology, add missing section mandated by constitution). These will be applied directly after user batch-approval.
 
-   **Category B — 의사결정 필요/가능 (Decision Needed / Decision Possible):**
+   **Category B — Decision Needed / Decision Possible:**
    Issues where multiple valid resolutions exist, or where a decision is not strictly required but the developer may benefit from choosing. Each gets structured options (see Step 4).
 
    **Dependency analysis for Category B items:**
    After classifying all D-\* items, perform a dependency check:
-   - **Independent (독립)**: Answering this item does NOT change, invalidate, or create other D-\* items. These can be presented in one batch.
-   - **Dependent (종속)**: Answering this item changes the options, relevance, or existence of one or more other D-\* items. These must wait until the predecessor is answered.
+   - **Independent**: Answering this item does NOT change, invalidate, or create other D-\* items. These can be presented in one batch.
+   - **Dependent**: Answering this item changes the options, relevance, or existence of one or more other D-\* items. These must wait until the predecessor is answered.
 
    Group D-\* items into **rounds**:
    - **Round 1**: All independent items + items that are predecessors (but not dependents of anything).
@@ -111,7 +111,7 @@ Execution steps:
 
 4. Batch presentation (present findings grouped by dependency, then collect answers per round):
 
-   **First, output Category A (의사결정 불필요) as a table:**
+   **First, output Category A (No Decision Needed) as a table:**
 
    | ID   | Category    | Location    | Summary               | Proposed Fix     |
    | ---- | ----------- | ----------- | --------------------- | ---------------- |
@@ -119,39 +119,47 @@ Execution steps:
 
    (Stable IDs prefixed `N-`.)
 
-   Then output: `N-* 수정사항을 일괄 적용할까요? (특정 ID 제외 가능)`
+   Then output: `Batch-apply all N-* fixes? (You may exclude specific IDs.)`
 
-   **Then, output Category B (의사결정 필요/가능) grouped by round:**
+   **Then, output Category B (Decision Needed) grouped by round:**
+
+   `Question` writing rules (mandatory):
+   - Questions must not be simple selection requests; they must enable the user to deductively understand the root cause of the problem.
+   - Always follow this structure: **evidence (observed fact) → interpretation (problem) → impact (risk/consequence) → decision axis (what needs to be decided)**.
+   - Cite all relevant source references (artifact/section) exhaustively, and describe the concrete impact their combination has on implementation or validation.
+   - Do not use abstract terms like "ambiguity" or "conflict" in isolation; specify what is affected and why it impacts implementation or validation.
+
+   **Interpretability principle**: A user reading the Question must understand "why a decision is needed" and "what criteria to use when comparing options" without re-checking the original artifacts. The standard is completeness of causal reasoning, not the number of cited references.
 
    If all D-\* items are independent, present them all at once under a single heading.
    If dependency rounds exist, present only Round 1 items first with a note:
-   `ℹ️ 아래 항목의 답변에 따라 추가 질문이 있을 수 있습니다 (Round 2).`
+   `ℹ️ Additional questions may follow depending on your answers below (Round 2).`
 
    For each finding, present exactly this structure:
 
    > **D-{id}** | {Taxonomy Category} | {Location}
    > **Question:** {clear, specific question}
    >
-   > | Option                     | Description                              |
-   > | -------------------------- | ---------------------------------------- |
-   > | A                          | …                                        |
-   > | B                          | …                                        |
-   > | C                          | …                                        |
-   > | (D/E as needed, 3–5 total) | …                                        |
-   > | 서술형                     | 위 선택지에 해당하지 않는 경우 직접 작성 |
+   > | Option           | Description                           |
+   > | ---------------- | ------------------------------------- |
+   > | A                | …                                     |
+   > | B                | …                                     |
+   > | C                | …                                     |
+   > | (more as needed) | …                                     |
+   > | Free-form        | Provide your own answer if none apply |
    >
    > **Recommended:** Option {X} — {1-2 sentence reasoning}
 
    (Stable IDs prefixed `D-`.)
 
-   After all D-_ blocks in the current round, output:
-   `각 D-_ 항목에 대해 옵션 문자(A/B/C/...) 또는 서술형 답변을 작성해주세요. (e.g., "D-01: B, D-02: A, D-03: 서술형—내 의견은...")`
+   After all D-\_ blocks in the current round, output:
+   `For each D-* item, provide an option letter (A/B/C/…) or a free-form answer. (e.g., "D-01: B, D-02: A, D-03: free-form—my reasoning is…")`
 
    The user may answer:
    - All at once: `D-01: B, D-02: A, D-03: C`
    - Incrementally: answer a subset, then the rest later
-   - Accept recommendations: `모두 추천대로` or `recommended`
-   - Mix: `D-01: B, D-02: 추천, D-03: 서술형—XYZ`
+   - Accept recommendations: `all recommended` or `recommended`
+   - Mix: `D-01: B, D-02: recommended, D-03: free-form—XYZ`
 
    After receiving answers for the current round:
    - If ambiguous, ask for a quick disambiguation for that specific item only.
@@ -160,8 +168,8 @@ Execution steps:
      - Update options for items whose choices changed.
      - Present the next round of D-\* items using the same format.
    - Repeat until all rounds are resolved or user signals completion.
-   - Once all D-\* items across all rounds are resolved (or user signals "done"/"good"/"끝"), proceed to integration.
-   - Respect user early termination signals ("stop", "done", "proceed", "끝", "다음").
+   - Once all D-\* items across all rounds are resolved (or user signals "done"/"good"), proceed to integration.
+   - Respect user early termination signals ("stop", "done", "proceed", "next").
 
 5. Integration after collecting answers (batch or incremental):
    - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.

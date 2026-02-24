@@ -128,9 +128,19 @@ Output a Markdown report (no file writes) split into two actionable sections. Re
 
 ## Specification Analysis Report
 
-### 6-A. 의사결정 불필요 수정사항 (No Decision Needed)
+### 6-A. No Decision Needed
 
 Issues with a single clear fix that the agent (or developer) can apply without ambiguity.
+
+`Summary` writing rules (mandatory):
+
+- Do not use vague evaluative phrases (e.g., "misaligned", "insufficient", "contradictory") in isolation.
+- Always use a **cause-effect structure**.
+- Recommended template: `The statement B in artifact A and the statement D in artifact C cause effect E.`
+- Each sentence must cite all relevant source references (artifact/section) exhaustively, and clearly state the resulting impact from their combination.
+- Example: `The minimum observable signal definition in spec.md FR-019 and the MUST requirement in constitution.md Principle V cause a conflict in observability contract interpretation.`
+
+**Interpretability principle**: A reader of the Summary must understand "why this is a problem" without re-opening the original artifacts. The standard is completeness of causal reasoning, not the number of cited references.
 
 | ID   | Category      | Severity | Location(s) | Summary              | Proposed Fix         |
 | ---- | ------------- | -------- | ----------- | -------------------- | -------------------- |
@@ -138,10 +148,20 @@ Issues with a single clear fix that the agent (or developer) can apply without a
 
 (One row per finding. Stable IDs prefixed `N-` for no-decision.)
 
-### 6-B. 의사결정 필요/가능 수정사항 (Decision Needed / Decision Possible)
+### 6-B. Decision Needed / Decision Possible
 
-Issues where multiple valid resolutions exist. Present **3–5 mutually exclusive options** plus a free-form fallback for each.
+Issues where multiple valid resolutions exist. Present **mutually exclusive options** plus a free-form fallback for each.
 Include items where a decision is not strictly required but the developer may benefit from choosing.
+
+`Summary` writing rules (mandatory):
+
+- Do not use abstract evaluations like "ambiguous", "conflicting", or "unclear" in isolation.
+- Always write a **deductive explanation** following this order: `evidence (observed fact) → interpretation (problem) → impact (risk/consequence) → why a decision is needed`.
+- Each paragraph must cite all relevant source references (artifact/section) exhaustively, and state the resulting impact from their combination.
+- Explain why no single correct answer exists (why alternatives coexist) and identify the key comparison axis between options (e.g., accuracy / complexity / operational cost).
+- Recommended template: `The statement B in artifact A and the statement D in artifact C cause effect E; approaches F and G are both viable resolutions, so a decision is needed.`
+
+**Interpretability principle**: A reader of the Summary must understand "why this issue requires a decision" and "what criteria to use when comparing options" without re-opening the original artifacts. The standard is completeness of causal reasoning, not the number of cited references.
 
 **Dependency grouping:** Before presenting D-\* items, classify each as independent or dependent:
 
@@ -155,13 +175,13 @@ For each finding, output this block:
 > **D-{id}** | {Category} | {Severity} | {Location(s)}
 > **Summary:** {description}
 >
-> | Option                 | Description                              |
-> | ---------------------- | ---------------------------------------- |
-> | A                      | …                                        |
-> | B                      | …                                        |
-> | C                      | …                                        |
-> | (D/E as needed, max 5) | …                                        |
-> | 서술형                 | 위 선택지에 해당하지 않는 경우 직접 작성 |
+> | Option           | Description                           |
+> | ---------------- | ------------------------------------- |
+> | A                | …                                     |
+> | B                | …                                     |
+> | C                | …                                     |
+> | (more as needed) | …                                     |
+> | Free-form        | Provide your own answer if none apply |
 >
 > **Recommended:** Option {X} — {1-2 sentence reasoning}
 
@@ -201,8 +221,8 @@ At end of report, output a concise Next Actions block:
 
 After presenting the report:
 
-1. **No-Decision items (N-\*)**: Ask the user "N-\* 수정사항을 일괄 적용할까요?" (batch-apply all, or let the user exclude specific IDs).
-2. **Decision items (D-\*)**: Collect the user's option choices (letter or free-form) for each D-\* item. The user may answer all at once (e.g., "D-01: B, D-02: A, D-03: 서술형—내 의견은…") or answer incrementally. - If dependency chains were annotated, remind the user to answer predecessor items first. After predecessors are resolved, re-evaluate dependent items (options may change or items may become unnecessary) and present updated D-\* blocks for the next round.3. Do NOT apply any edits until the user explicitly approves. Present a final confirmation summary before writing.
+1. **No-Decision items (N-\*)**: Ask the user "Batch-apply all N-\* fixes?" (the user may exclude specific IDs).
+2. **Decision items (D-\*)**: Collect the user's option choices (letter or free-form) for each D-\* item. The user may answer all at once (e.g., "D-01: B, D-02: A, D-03: free-form—my reasoning is…") or answer incrementally. - If dependency chains were annotated, remind the user to answer predecessor items first. After predecessors are resolved, re-evaluate dependent items (options may change or items may become unnecessary) and present updated D-\* blocks for the next round.3. Do NOT apply any edits until the user explicitly approves. Present a final confirmation summary before writing.
 
 ## Operating Principles
 
