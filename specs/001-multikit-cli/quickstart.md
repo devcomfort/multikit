@@ -68,7 +68,29 @@ Expected:
 - 변경 파일별 unified diff
 - 변경 없음: `No changes detected`
 
-## 6) Uninstall
+## 6) Update installed kits
+
+```bash
+multikit update testkit
+```
+
+Expected:
+
+- 설치된 킷을 원격 최신 기준으로 갱신
+- `multikit.toml` 버전/파일 목록 갱신
+
+Interactive multi-update:
+
+```bash
+multikit update
+```
+
+Expected:
+
+- 설치된 킷 선택 UI 표시
+- 선택한 킷만 순차 업데이트
+
+## 7) Uninstall
 
 ```bash
 multikit uninstall testkit
@@ -79,6 +101,16 @@ Expected:
 - `multikit.toml`의 `files[]` 기준 파일 삭제
 - `kits.testkit` 섹션 제거
 - 공유 참조 예외 감지 시 파일 보존 + warning
+
+## 8) Upgrade multikit program (package)
+
+`multikit update`는 설치된 kit 업데이트용이다. CLI 프로그램 자체를 올릴 때는 패키지 매니저를 사용한다.
+
+```bash
+pip install -U "git+https://github.com/devcomfort/multikit.git@main"
+uv pip install -U "git+https://github.com/devcomfort/multikit.git@main"
+rye sync
+```
 
 ## Validation Commands
 

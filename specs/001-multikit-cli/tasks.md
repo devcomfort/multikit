@@ -23,9 +23,9 @@
 
 **Purpose**: Project initialization, pyproject.toml, package scaffold
 
-- [x] T001 Create pyproject.toml with hatchling build, cyclopts/httpx/pydantic/tomli/tomli-w dependencies, and `[project.scripts] multikit = "multikit.cli:app"` entry point in `pyproject.toml`
+- [x] T001 Create pyproject.toml with hatchling build, cyclopts/aiohttp/aiofiles/pydantic/tomli/tomli-w dependencies, and `[project.scripts] multikit = "multikit.cli:app"` entry point in `pyproject.toml`
 - [x] T002 Create package scaffold: `src/multikit/__init__.py` (with `__version__ = "0.1.0"`), `src/multikit/commands/__init__.py`, `src/multikit/models/__init__.py`, `src/multikit/registry/__init__.py`, `src/multikit/utils/__init__.py`
-- [x] T003 [P] Create root CLI app with cyclopts in `src/multikit/cli.py` — import and register all sub-command apps (init, install, uninstall, list, diff)
+- [x] T003 [P] Create root CLI app with cyclopts in `src/multikit/cli.py` — import and register all sub-command apps (init, install, uninstall, list, diff, update)
 - [x] T004 [P] Create pytest conftest with tmp_path fixtures and httpx mock helpers in `tests/conftest.py`
 - [x] T005 [P] Create sample kit data for testing: `kits/registry.json`, `kits/testkit/manifest.json`, `kits/testkit/agents/testkit.testdesign.agent.md`, `kits/testkit/agents/testkit.testcoverage.agent.md`, `kits/testkit/prompts/testkit.testdesign.prompt.md`, `kits/testkit/prompts/testkit.testcoverage.prompt.md`
 
@@ -43,7 +43,7 @@
 - [x] T009 [P] Implement TOML read/write utilities (tomli/tomli-w compat layer, load_config, save_config) in `src/multikit/utils/toml_io.py` (per research.md D-003). load_config에서 TOMLDecodeError 발생 시 `multikit.toml` → `multikit.toml.bak` 백업 생성 후 사용자 친화적 에러 메시지 출력 포함
 - [x] T010 [P] Implement file utilities (atomic_install with tempdir, file delete, file move) in `src/multikit/utils/files.py` (per research.md D-004)
 - [x] T011 [P] Implement diff utilities (show_diff with colored unified diff, prompt_overwrite interactive y/n/a/s) in `src/multikit/utils/diff.py` (per research.md D-005, D-006)
-- [x] T012 Implement remote registry client (fetch_registry, fetch_manifest, fetch_file using httpx sync with timeout and follow_redirects) in `src/multikit/registry/remote.py` (per research.md D-002)
+- [x] T012 Implement remote registry client (fetch_registry, fetch_manifest, fetch_file using aiohttp with timeout/retry and bounded concurrency controls) in `src/multikit/registry/remote.py` (per research.md D-002)
 - [x] T013 [P] Write unit tests for Pydantic models (Manifest, Registry, MultikitConfig validation) in `tests/test_models.py`
 - [x] T014 [P] Write unit tests for TOML I/O (read/write/update config) in `tests/test_toml_io.py`
 - [x] T015 [P] Write unit tests for registry client (using respx mocks for httpx) in `tests/test_registry.py`
@@ -157,8 +157,43 @@
 - [ ] T032 [P] Verify/update `kits/registry.json` — testkit과 gitkit 항목이 모두 포함되어 있는지 확인
 - [x] T033 [P] Verify `src/multikit/__main__.py`가 `python -m multikit` 실행을 올바르게 지원하는지 확인
 - [ ] T034 [P] Verify/update README.md — 설치, 사용법, 개발 가이드가 현재 CLI 동작과 일치하는지 확인
-- [ ] T035 Run quickstart.md validation — verify `pip install -e .`, `multikit init`, `multikit install testkit`, `multikit list`, `multikit diff testkit`, `multikit uninstall testkit` all work. 각 명령 실행 시 `time` 명령으로 응답 시간 확인: `time multikit init` < 500ms, `time multikit list` < 500ms (로컬), `time multikit install testkit` < 3s (원격)
+- [ ] T034a [P] Clarify docs that `multikit update` updates installed kits only, and multikit program upgrades are handled via package managers (`pip`/`uv`/`rye`)
+- [ ] T035 Run quickstart.md validation — verify `pip install -e .`, `multikit init`, `multikit install testkit`, `multikit list`, `multikit diff testkit`, `multikit update testkit`, `multikit uninstall testkit` all work. 각 명령 실행 시 `time` 명령으로 응답 시간 확인: `time multikit init` < 500ms, `time multikit list` < 500ms (로컬), `time multikit install testkit` < 3s (원격)
 - [ ] T036 Run full test suite and verify ≥ 90% coverage with `pytest --cov=multikit`
+
+---
+
+## Phase 9: User Story 6 - 설치된 킷 업데이트 (Priority: P2)
+
+**Goal**: `multikit update [kit]`로 설치된 킷을 원격 최신으로 갱신
+
+**Independent Test**: 설치된 킷 대상으로 `multikit update testkit` 실행 시 파일/버전 갱신 확인
+
+### Tests for User Story 6
+
+- [x] T037 [P] [US6] Write tests for update command (single update, non-installed kit, interactive no selection, interactive partial failure) in `tests/commands/test_update.py`
+
+### Implementation for User Story 6
+
+- [x] T038 [US6] Implement update command handler in `src/multikit/commands/update.py` using latest-remote reinstall flow for installed kits only
+- [x] T039 [US6] Register update sub-app in `src/multikit/cli.py` and verify `multikit update` appears in command surface tests
+
+---
+
+## Phase 10: Async Performance Optimization (Priority: P2)
+
+**Goal**: `install`/`diff`의 네트워크·파일 I/O를 비동기 처리로 최적화
+
+**Independent Test**: 다중 파일 킷에서 `install`/`diff` 실행 시 제한 동시성 비동기 처리 경로가 동작하고 기존 기능 계약을 유지하는지 확인
+
+### Tests for Phase 10
+
+- [ ] T040 [P] Add async optimization tests for install/diff (bounded concurrency, retry on transient failure/429, atomic safety 유지) in `tests/commands/test_install.py`, `tests/commands/test_diff.py`
+
+### Implementation for Phase 10
+
+- [ ] T041 Implement aiohttp-based concurrent remote fetch path for install/diff in `src/multikit/registry/remote.py`, `src/multikit/commands/install.py`, `src/multikit/commands/diff.py`
+- [ ] T042 Implement aiofiles-based async file read/write path for staging and diff comparison in `src/multikit/utils/files.py` and related call sites
 
 ---
 
