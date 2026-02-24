@@ -3,9 +3,13 @@
     "version": "1.0.0",
     "description": "Meta-kit for generating and managing multikit agents",
     "agents": [
-        "multikit.generation.agent.md"
+        "multikit.generation.agent.md",
+        "multikit.readme.governance.agent.md",
+        "multikit.readme.proposal.agent.md"
     ],
     "prompts": [
-        "multikit.generation.prompt.md"
+        "multikit.generation.prompt.md",
+        "multikit.readme.governance.prompt.md",
+        "multikit.readme.proposal.prompt.md"
     ]
 }
