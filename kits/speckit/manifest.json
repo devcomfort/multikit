@@ -1,6 +1,6 @@
 {
     "name": "speckit",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Specification analysis and clarification agents",
     "agents": [
         "speckit.analyze.agent.md",

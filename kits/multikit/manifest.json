@@ -1,6 +1,6 @@
 {
     "name": "multikit",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Meta-kit for generating and managing multikit agents",
     "agents": [
         "multikit.generation.agent.md",
