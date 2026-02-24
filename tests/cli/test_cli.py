@@ -20,6 +20,7 @@ class TestCLIApp:
         assert ("init",) in command_names
         assert ("install",) in command_names
         assert ("uninstall",) in command_names
+        assert ("update",) in command_names
         assert ("list",) in command_names
         assert ("diff",) in command_names
 
