@@ -109,7 +109,23 @@ Execution steps:
    - Exclude questions already answered, trivial stylistic preferences, or plan-level execution details (unless blocking correctness).
    - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
 
-4. Batch presentation (present findings grouped by dependency, then collect answers per round):
+4. Findings presentation (mode-aware):
+
+   #### Presentation Mode
+
+   The agent supports two output modes:
+   - **Batch Mode** (default): Present all findings at once as described below.
+   - **Sequential Mode**: Present one finding at a time, collecting user response before proceeding. Activated when user explicitly requests (e.g., "하나씩 보여줘", "one at a time", "하나씩 처리하자").
+
+   **Mode switching:** User can switch at any time ("나머지 전부 보여줘" → Batch, "하나씩 보자" → Sequential). Acknowledge the switch briefly and continue with remaining items in the new mode.
+
+   **Sequential Mode rules:**
+   - N-\* items first, one at a time, asking approval per item.
+   - D-\* items next: independent items first, then dependent items after predecessors resolve.
+   - Dependency clusters that must be decided simultaneously are presented as one unit with explanation.
+   - Between items, briefly state remaining count (e.g., "N-02 완료. 남은 항목: D-01~D-03").
+
+   **Batch Mode presentation (default):**
 
    **First, output Category A (No Decision Needed) as a table:**
 
@@ -118,6 +134,13 @@ Execution steps:
    | N-01 | Terminology | spec.md:L30 | Inconsistent term "X" | Normalize to "Y" |
 
    (Stable IDs prefixed `N-`.)
+
+   **Visual Concreteness Principle (mandatory):** After the summary table, present each proposed fix so the user can evaluate it **purely by reading the presented text**—without mentally composing what the result would look like. Choose the most effective format per item:
+   - **Fenced code block** (` ```markdown `): Multi-line insertions/replacements, new sections, or structural changes.
+   - **Inline diff** (` `old`→`new` `): Single-term renames, short phrase replacements, or value swaps.
+   - **Bullet summary with quoted excerpt**: Minor additions to an existing list or table row.
+
+   The agent selects the format that maximizes readability for the specific change size and type. The invariant is: **the user sees the exact final text**, not an abstract description of it. For D-\* items, show the concrete spec text for the **recommended option**; if the user selects a different option, regenerate the snippet for confirmation before applying.
 
    Then output: `Batch-apply all N-* fixes? (You may exclude specific IDs.)`
 
@@ -130,6 +153,8 @@ Execution steps:
    - Do not use abstract terms like "ambiguity" or "conflict" in isolation; specify what is affected and why it impacts implementation or validation.
 
    **Interpretability principle**: A user reading the Question must understand "why a decision is needed" and "what criteria to use when comparing options" without re-checking the original artifacts. The standard is completeness of causal reasoning, not the number of cited references.
+
+   **Self-contained references (mandatory)**: Every cross-reference ID (FR-015, SC-008, T035, US6, etc.) MUST include a brief inline description on first mention in each section so the reader never needs to open another file to understand the reference. Format: `ID(short description)` — e.g., `US6(설치된 킷 업데이트)`, `FR-015(update --force/--registry)`, `SC-008(재시도 백오프 검증)`, `T035(update retry/backoff 테스트)`. Subsequent mentions in the same section may use the bare ID.
 
    If all D-\* items are independent, present them all at once under a single heading.
    If dependency rounds exist, present only Round 1 items first with a note:
@@ -211,6 +236,7 @@ Execution steps:
 
 Behavior rules:
 
+- **Response Language**: If the user explicitly requests a language, use that language for all output. Otherwise, infer the user's preferred language from recent conversation messages (e.g., if the user writes in Korean, respond in Korean). Technical identifiers (IDs, file paths, code snippets) remain in their original form regardless of response language.
 - If no meaningful ambiguities found (or all potential questions would be low-impact), respond: "No critical ambiguities detected worth formal clarification." and suggest proceeding.
 - If spec file missing, instruct user to run `/speckit.specify` first (do not create a new spec here).
 - Never exceed the user's patience; if user signals early termination, stop and integrate what has been answered.
