@@ -5,6 +5,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-20
 ## Active Technologies
 - Python ≥ 3.10 + pytest, pytest-cov, tox, tox-gh-actions, GitHub Actions, (badge provider) Codecov/Shields.io (002-readme-badges)
 - N/A (설정/문서 파일 기반) (002-readme-badges)
+- Python 3.10+ + cyclopts, aiohttp, aiofiles, pydantic, tomli/tomli-w, tabulate, questionary (001-multikit-cli)
+- Local filesystem + `multikit.toml` (001-multikit-cli)
 
 - Python ≥ 3.10 + cyclopts, httpx, pydantic, tomli/tomli-w, questionary, tabulate (001-readme-badges)
 
@@ -24,6 +26,7 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python ≥ 3.10: Follow standard conventions
 
 ## Recent Changes
+- 001-multikit-cli: Added Python 3.10+ + cyclopts, aiohttp, aiofiles, pydantic, tomli/tomli-w, tabulate, questionary
 - 002-readme-badges: Added Python ≥ 3.10 + pytest, pytest-cov, tox, tox-gh-actions, GitHub Actions, (badge provider) Codecov/Shields.io
 
 - 001-readme-badges: Added Python ≥ 3.10 + cyclopts, httpx, pydantic, tomli/tomli-w, questionary, tabulate
