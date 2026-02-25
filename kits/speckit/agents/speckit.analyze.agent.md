@@ -124,6 +124,25 @@ Use this heuristic to prioritize findings:
 
 Output a Markdown report (no file writes) split into two actionable sections. Report ALL findings—do not cap at a fixed number.
 
+#### Presentation Mode
+
+The agent supports two output modes:
+
+- **Batch Mode** (default): Present all N-\* and D-\* findings at once. This is the standard report format.
+- **Sequential Mode**: Present findings one at a time, collecting user response before proceeding to the next. Activated when user explicitly requests (e.g., "하나씩 보여줘", "one at a time", "하나씩 처리하자").
+
+**Mode switching:**
+
+- Default is Batch unless user requests otherwise. User can switch at any time ("나머지 전부 보여줘" → Batch, "하나씩 보자" → Sequential).
+- Acknowledge the mode switch briefly and continue with remaining items in the new mode.
+
+**Sequential Mode ordering (N-\* then D-\*):**
+
+1. N-\* items first (no decision needed), one at a time, asking approval per item.
+2. D-\* items next: independent items first, then dependent items after their predecessors are resolved.
+3. If a dependency cluster must be decided simultaneously, present the entire cluster as one unit and explain why they are grouped.
+4. Between items, briefly state remaining count (e.g., "N-03 완료. 남은 항목: N-04, N-05, D-01~D-03").
+
 ---
 
 ## Specification Analysis Report
@@ -219,10 +238,31 @@ At end of report, output a concise Next Actions block:
 
 ### 8. Offer Remediation
 
+**Visual Concreteness Principle (mandatory):** When presenting proposed fixes for approval, the user must be able to evaluate each fix **purely by reading the presented text**—without mentally composing what the result would look like. Choose the most effective presentation format per item:
+
+- **Fenced code block** (` ```markdown `): Multi-line insertions/replacements, new sections, or structural changes.
+- **Inline diff** (` `old`→`new` `): Single-term renames, short phrase replacements, or value swaps.
+- **Bullet summary with quoted excerpt**: When the change is a minor addition to an existing list or table row.
+
+The agent selects the format that maximizes readability for the specific change size and type. The invariant is: **the user sees the exact final text**, not an abstract description of it.
+
+This applies to:
+
+- **N-\* items**: Show the concrete insertion/replacement text for every fix.
+- **D-\* items**: Show the concrete text for the **recommended option**. If the user selects a different option, regenerate the snippet for confirmation before applying.
+
 After presenting the report:
 
-1. **No-Decision items (N-\*)**: Ask the user "Batch-apply all N-\* fixes?" (the user may exclude specific IDs).
-2. **Decision items (D-\*)**: Collect the user's option choices (letter or free-form) for each D-\* item. The user may answer all at once (e.g., "D-01: B, D-02: A, D-03: free-form—my reasoning is…") or answer incrementally. - If dependency chains were annotated, remind the user to answer predecessor items first. After predecessors are resolved, re-evaluate dependent items (options may change or items may become unnecessary) and present updated D-\* blocks for the next round.3. Do NOT apply any edits until the user explicitly approves. Present a final confirmation summary before writing.
+1. **No-Decision items (N-\*)**: For each N-\* item, present a labeled heading (e.g., `### N-01: …`) with the exact text to add or replace using the most appropriate format above. After all items, ask: "Batch-apply all N-\* fixes?" (the user may exclude specific IDs).
+2. **Decision items (D-\*)**: Collect the user's option choices (letter or free-form) for each D-\* item. The user may answer all at once (e.g., "D-01: B, D-02: A, D-03: free-form—my reasoning is…") or answer incrementally. If dependency chains were annotated, remind the user to answer predecessor items first. After predecessors are resolved, re-evaluate dependent items (options may change or items may become unnecessary) and present updated D-\* blocks for the next round.
+3. Do NOT apply any edits until the user explicitly approves. Present a final confirmation summary before writing.
+
+**In Sequential Mode**, the above batch flow is replaced:
+
+- Present one N-\* fix at a time with its concrete text. After user approves/rejects, proceed to the next.
+- Then present one D-\* item at a time (independent first). Collect choice, then proceed.
+- For dependent D-\* clusters, present the cluster as a unit.
+- After all items (or user signals "done"), apply approved edits in a single batch.
 
 ## Operating Principles
 
@@ -232,6 +272,13 @@ After presenting the report:
 - **Progressive disclosure**: Load artifacts incrementally; don't dump all content into analysis
 - **Exhaustive output**: Report ALL detected findings without artificial row limits; prefer concise per-row descriptions to stay readable
 - **Deterministic results**: Rerunning without changes should produce consistent IDs and counts
+- **Self-contained references**: Every cross-reference ID (FR-015, SC-008, T035, US6, etc.) MUST include a brief inline description on first mention in each section so the reader never needs to open another file to understand the reference. Format: `ID(short description)` — e.g., `US6(설치된 킷 업데이트)`, `FR-015(update --force/--registry)`, `SC-008(재시도 백오프 검증)`, `T035(update retry/backoff 테스트)`. Subsequent mentions in the same section may use the bare ID.
+
+### Response Language
+
+- If the user explicitly requests a language, use that language for the entire report.
+- Otherwise, infer the user's preferred language from recent conversation messages (e.g., if the user writes in Korean, respond in Korean).
+- Technical identifiers (IDs, file paths, code snippets) remain in their original form regardless of response language.
 
 ### Analysis Guidelines
 
