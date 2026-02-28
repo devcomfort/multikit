@@ -15,8 +15,10 @@
 - Exit code `1`: 에러(유효하지 않은 킷, 네트워크 실패, 설정 파싱 실패 등)
 - 네트워크 오류는 crash 없이 사용자 친화 메시지로 반환
 - `multikit update`는 설치된 kit 자산 업데이트 전용이며, multikit 프로그램(패키지) 자체 업데이트는 `pip`/`uv`/`rye`의 업그레이드 명령으로 처리
-- `multikit install`/`multikit diff`는 성능 최적화를 위해 `aiohttp` + 제한 동시성 모델을 사용
+- `multikit install`/`multikit diff`/`multikit update`는 end-to-end async 경로로 동작
+- 네트워크 동시성 기본값은 8이며, `multikit.toml`의 `network.max_concurrency`로 오버라이드 가능
 - 파일 읽기/쓰기 병목 경로는 `aiofiles` 기반 비동기 I/O를 사용
+- 재시도 정책: `429`/`5xx`/`ConnectTimeout` 대상, 최대 3회, 백오프 `0.5s → 1s → 2s` + jitter
 
 ## `multikit init`
 
@@ -37,7 +39,7 @@
 
 1. `multikit.toml` 로드(또는 기본값)
 2. 원격 최신 기준으로 `manifest.json` 조회 (`aiohttp`)
-3. manifest 선언 파일을 tempdir에 제한된 동시성으로 다운로드 (`aiohttp`)
+3. manifest 선언 파일을 tempdir에 제한된 동시성(기본 8)으로 다운로드 (`aiohttp`)
 4. 전부 성공 시에만 `.github/` 반영(atomic)
 5. 기존 파일과 차이 있으면 diff + `[y/n/a/s]` (또는 `--force`)
 6. `multikit.toml`의 `kits.<kit_name>` 갱신
@@ -46,7 +48,7 @@
 
 - manifest 404: `Kit not found`
 - 파일 다운로드 실패: tempdir 정리 + 기존 파일 불변
-- 원격 429/일시적 네트워크 실패: backoff 재시도 후 실패 시 에러 반환
+- 원격 `429`/`5xx`/`ConnectTimeout`: 최대 3회 재시도 후 실패 시 에러 반환
 - TOML 파싱 실패: 명확한 설정 오류 메시지
 
 ## `multikit list`
@@ -79,7 +81,7 @@
 ### Behavior
 
 1. 로컬 설치 확인
-2. 원격 최신 manifest/files 조회 (`aiohttp`, 제한 동시성)
+2. 원격 최신 manifest/files 조회 (`aiohttp`, 제한 동시성 기본 8)
 3. 로컬 파일과 unified diff 출력
 4. 변경 없으면 `No changes detected`
 
@@ -89,7 +91,7 @@
 
 1. 로컬 config 로드
 2. `kit_name`이 있으면 해당 킷이 설치 상태인지 검증
-3. 설치된 킷을 원격 최신 manifest/files 기준으로 재적용(install 충돌 처리 규칙 재사용: diff + `[y/n/a/s]` 또는 `--force`)
+3. 설치된 킷을 원격 최신 manifest/files 기준으로 재적용(install async/retry/concurrency 정책 재사용)
 4. 성공 시 `multikit.toml`의 해당 킷 버전/파일 목록 갱신
 5. `kit_name`이 없으면 설치된 킷 다중 선택 UI 제공 후 선택 항목 일괄 업데이트
 

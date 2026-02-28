@@ -1,104 +1,91 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: Multikit CLI Async Optimization + Update Command
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Branch**: `001-multikit-cli` | **Date**: 2026-02-25 | **Spec**: `/specs/001-multikit-cli/spec.md`
+**Input**: Feature specification from `/specs/001-multikit-cli/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+`multikit` CLI에 `update` 명령을 도입하고, `install`/`diff`/`update` 경로를 end-to-end async(`aiohttp`, `aiofiles`)로 최적화한다. 동시성(기본 8 + `network.max_concurrency`), 재시도 정책(429/5xx/ConnectTimeout, 3회, 지수 백오프+jitter), atomic 설치 보장을 구현 기준으로 확정한다. 모든 원격 명령(`install`/`list`/`diff`/`update`)은 기본 레지스트리를 기본값으로 사용하고, 사용자가 `--registry`를 명시한 경우에만 오버라이드한다.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python 3.10+  
+**Primary Dependencies**: cyclopts, aiohttp, aiofiles, pydantic, tomli/tomli-w, tabulate, questionary  
+**Storage**: Local filesystem + `multikit.toml`  
+**Testing**: pytest, pytest-cov, aioresponses(aiohttp 전용 HTTP 모킹)  
+**Target Platform**: Linux/macOS/Windows CLI  
+**Project Type**: Single Python project (CLI)  
+**Performance Goals**: <3s remote install/update, <2s remote diff, <500ms local commands  
+**Constraints**: Atomic install 유지, bounded concurrency(기본 8), retry budget 3회, VS Code Copilot `.github` 구조 준수  
+**Scale/Scope**: 수십 개 파일 수준 kit 단위 동기화, 단일 프로젝트 로컬 실행
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-[Gates determined based on constitution file]
+### Pre-Research Gate Check
+
+- **I. Intuitive CLI Experience**: PASS — `update`는 기존 command surface와 동일 패턴(단건 + 인터랙티브 다건)을 따른다.
+- **II. Standardized Configuration**: PASS — `multikit.toml` 중심 구성, `.github/agents|prompts` 경로 계약 유지.
+- **III. Idempotent & Clean Operations**: PASS — atomic staging과 tracked files 기반 정리 전략 유지.
+- **IV. Minimal & Modern Foundation**: PASS — Python 3.10+ 및 경량 async 라이브러리(`aiohttp`, `aiofiles`) 채택.
+- **V. Extensibility via Kits**: PASS — manifest/registry 기반 kit 아키텍처 불변.
+
+### Post-Design Gate Check
+
+- **I** PASS — 계약/quickstart/tasks 모두 `update` UX를 동일한 사용성 패턴으로 문서화.
+- **II** PASS — `network.max_concurrency`를 Config 엔티티에 명시해 스키마 일관성 확보.
+- **III** PASS — retry/concurrency 정책이 실패 시 partial write 방지 조건과 함께 정의됨.
+- **IV** PASS — async 최적화는 병목 구간에 한정하고 비기능 목표 수치 포함.
+- **V** PASS — `update`도 install 재사용 경로로 kit 아키텍처 중심 확장.
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/[###-feature]/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+specs/001-multikit-cli/
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+│   └── cli-commands.md
+└── tasks.md
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
+src/multikit/
+├── cli.py
+├── commands/
+│   ├── init.py
+│   ├── install.py
+│   ├── list_cmd.py
+│   ├── uninstall.py
+│   ├── diff.py
+│   └── update.py
 ├── models/
-├── services/
-├── cli/
-└── lib/
+│   └── config.py
+├── registry/
+│   └── remote.py
+└── utils/
+    ├── files.py
+    ├── diff.py
+    └── toml_io.py
 
 tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+├── cli/
+├── commands/
+├── registry/
+└── utils/
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: 단일 Python CLI 프로젝트 구조를 유지하고, async 최적화는 `commands`/`registry`/`utils`의 기존 경계 내에서 점진 적용한다.
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
 | Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| --------- | ---------- | ------------------------------------ |
+| None      | N/A        | N/A                                  |

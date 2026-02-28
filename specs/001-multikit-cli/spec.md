@@ -23,6 +23,13 @@
 - Q: multikit 프로그램(패키지) 자체 업데이트는 어떻게 처리하는가? → A: MVP에서는 CLI 내부 self-update 명령을 제공하지 않는다. 프로그램 자체 업데이트는 `pip/uv/rye` 등 패키지 매니저의 업그레이드 명령으로 수행한다.
 - Q: `install`/`diff` 성능 최적화를 위해 어떤 I/O 전략을 사용하는가? → A: 네트워크/파일 I/O 병목 구간은 `aiohttp` + `aiofiles` 기반 비동기 처리로 최적화한다. 특히 `install`의 다중 파일 다운로드와 `diff`의 원격 파일 조회를 동시 처리(제한된 concurrency)한다.
 
+### Session 2026-02-25
+
+- Q: `install`/`diff`/`update`의 동시성 상한은 어떻게 정의하는가? → A: 기본값은 8로 고정하고, `multikit.toml`의 `network.max_concurrency` 값으로 오버라이드할 수 있다.
+- Q: 원격 `429`/일시 장애에 대한 재시도 정책은 무엇인가? → A: `429`/`5xx`/`ConnectTimeout`에 대해 최대 3회 재시도하며, 지수 백오프(0.5s, 1s, 2s)와 jitter를 적용한다.
+- Q: 비동기 도입 범위는 어디까지인가? → A: `install`/`diff`/`update` 경로는 명령 핸들러까지 포함한 end-to-end async로 전환한다.
+- Q: async 최적화 적용 범위에 `update`를 포함하는가? → A: 포함한다. `update`는 `install` 재사용 경로로 동일한 async 네트워크/파일 I/O 정책을 적용한다.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - 프로젝트 초기화 (Priority: P1)
@@ -129,13 +136,21 @@
 
 ### Edge Cases
 
+**공통 출력 규칙**: 비-네트워크 오류(권한, TOML 파싱, 빈 킷 등)의 에러/경고 메시지는 `[명령명] 원인 설명` 형식으로 stderr에 출력한다. 경고(warning)는 실행을 중단하지 않고 exit 0을 유지하며, 에러(error)는 exit 1을 반환한다.
+
 - **네트워크 오류**: `install`은 모든 파일을 임시 디렉토리에 먼저 다운로드(atomic). 중간에 네트워크가 끊기면 임시 파일을 삭제하고 `.github/`는 변경하지 않음. 에러 메시지와 함께 실패한 파일을 보고.
 - **권한 오류**: `.github/` 디렉토리에 쓰기 권한이 없는 경우 명확한 에러 메시지 출력.
 - **동시 실행**: MVP 범위에서 명시적으로 제외. 동시 실행 시 `multikit.toml` 레이스 컨디션이 발생할 수 있으나, MVP에서는 이를 감지하거나 방지하지 않음. Post-MVP에서 락 파일 기반 동시성 제어를 도입 예정.
 - **로컬 수정 충돌**: `install` 시 로컬 파일이 수정되어 원격과 다를 경우, 파일별 diff를 보여주고 `[y/n/a(all)/s(skip all)]` 선택지를 제공해야 함.
-- **빈 킷**: 에이전트/프롬프트 파일이 하나도 없는 킷을 install하면 경고를 출력.
-- **대용량 파일**: 에이전트 파일이 비정상적으로 클 경우 (>1MB) 경고를 출력.
-- **API rate limit/과도한 동시 요청**: `install`/`diff`의 비동기 동시 처리에서는 동시성 상한을 적용하고, `429`/일시적 네트워크 실패 시 재시도(backoff) 후 실패를 보고.
+- **빈 킷**: 에이전트/프롬프트 파일이 하나도 없는 킷을 install하면 경고를 출력하고 설치를 건너뛴다 (`multikit.toml`에 기록하지 않음).
+- **API rate limit/과도한 동시 요청**: 기본 재시도/백오프 정책은 FR-019를 따른다. 추가로 다음 엣지/예외 시나리오를 처리해야 한다:
+  - **재시도 소진**: 3회 재시도 후에도 실패하면 해당 파일/요청을 실패로 기록하고, 동일 킷 내 나머지 요청은 계속 진행한다. 모든 요청 완료 후 실패 건이 있으면 atomic 정책에 따라 전체 롤백하고, 최종 에러 보고에서 실패 건수와 각 실패 URL을 나열한다.
+  - **부분 동시 실패**: 동시 다운로드 중 일부만 실패한 경우, atomic 정책에 따라 전체 킷 설치를 롤백하고 실패 파일 목록을 에러 출력에 포함한다.
+  - **장기 rate limit (Retry-After)**: `429` 응답에 `Retry-After` 헤더가 있으면 지수 백오프 대신 해당 값을 대기 시간으로 사용한다. `Retry-After`가 60초를 초과하면 즉시 실패로 처리하고 사용자에게 대기 시간 초과를 안내한다.
+  - **DNS/TLS 오류 등 비 HTTP 실패**: 연결 수준 오류(DNS 조회 실패, TLS 핸드셰이크 오류 등)는 재시도 대상에 포함하되, 동일 오류가 연속 발생하면 해당 호스트 전체를 unreachable로 판정하고 남은 요청을 조기 중단한다. 조기 중단 시 명령별 오류 처리는 다음과 같다:
+    - `install`/`update`: atomic 정책에 따라 임시 디렉토리를 삭제하고 기존 프로젝트 파일을 변경하지 않는다. 에러 출력에 unreachable 호스트, 중단 사유, 중단 시점까지 완료/실패한 파일 수를 포함하고 종료 코드 1을 반환한다.
+    - `diff`: 비교를 중단하고, 비교 완료된 파일의 diff 결과는 그대로 출력한 뒤 미비교 파일 목록을 경고로 출력하고 종료 코드 1을 반환한다.
+    - `list`: 원격 레지스트리 조회를 건너뛰고 로컬 설치 킷만 표시하며, unreachable 사유를 경고로 출력한다 (종료 코드 0 유지).
 - **multikit.toml 손상**: TOML 파싱 실패 시 백업 후 명확한 에러 메시지 출력.
 - **공유 파일 삭제 위험**: 기본 킷 구성에서는 단독 소유를 가정한다. 예외적으로 공유가 감지되면 삭제를 수행하지 않고 경고를 출력한다 (Post-MVP ownership 모델 대상).
 - **프로그램 자체 업데이트 요청**: `multikit update`는 킷 업데이트 전용이다. CLI 패키지 업데이트는 패키지 매니저 경로로 안내한다.
@@ -145,42 +160,46 @@
 ### Functional Requirements
 
 - **FR-001**: `multikit init` 명령은 `.github/agents/`, `.github/prompts/` 디렉토리와 `multikit.toml` 파일을 생성해야 한다 (멱등).
-- **FR-002**: `multikit install <kit>` 명령은 `aiohttp`를 사용하여 `raw.githubusercontent.com`에서 킷의 매니페스트/파일을 조회해야 하며, 파일 다운로드는 제한된 동시성으로 처리해야 한다.
+- **FR-002**: `multikit install <kit>` 명령은 기본 레지스트리/소스 기준 URL을 사용해 `aiohttp`로 `raw.githubusercontent.com`에서 킷의 매니페스트/파일을 조회해야 하며, 파일 다운로드는 제한된 동시성(기본 8, `network.max_concurrency` 오버라이드)으로 처리해야 한다. 사용자가 `--registry <url>`를 명시한 경우에만 해당 URL로 기준을 오버라이드해야 한다.
 - **FR-003**: `multikit install <kit>` 명령은 다운로드한 에이전트 파일을 `.github/agents/`에, 프롬프트 파일을 `.github/prompts/`에 배치해야 한다.
 - **FR-004**: `multikit install <kit>` 명령은 설치 기록을 `multikit.toml`에 기록해야 한다 (킷 이름, 버전, 소스).
 - **FR-005**: `multikit uninstall <kit>` 명령은 `multikit.toml`의 해당 킷 `files` 목록 기준으로 단독 소유 파일만 삭제하고 설정에서 제거해야 한다. 공유 참조가 감지되는 예외 상황에서는 삭제하지 않고 경고해야 한다.
-- **FR-006**: `multikit list` 명령은 원격 `registry.json`(`https://raw.githubusercontent.com/{owner}/{repo}/{branch}/kits/registry.json`)을 GET하여 사용 가능한 전체 킷 목록을 조회하고, `multikit.toml`과 대조하여 설치 상태를 테이블로 출력해야 한다. 네트워크 오류 시 로컬 설치 킷만 표시하고 경고를 출력해야 한다.
+- **FR-006**: `multikit list` 명령은 기본 레지스트리 URL(`https://raw.githubusercontent.com/{owner}/{repo}/{branch}/kits/registry.json`)을 GET하여 사용 가능한 전체 킷 목록을 조회하고, `multikit.toml`과 대조하여 설치 상태를 테이블로 출력해야 한다. 사용자가 `--registry <url>`를 명시한 경우에만 조회 기준을 오버라이드해야 한다. 네트워크 오류 시 로컬 설치 킷만 표시하고 경고를 출력해야 한다.
 - **FR-007**: CLI는 `cyclopts` 프레임워크를 사용하여 타입 힌트 기반으로 정의해야 한다.
-- **FR-008**: 모든 네트워크 오류는 비정상 종료 없이 사용자 친화적 에러 메시지로 처리해야 한다.
+- **FR-008**: 모든 네트워크 오류는 비정상 종료 없이 처리해야 하며, 표준 에러 출력에 (1) 실패 명령명, (2) 대상 킷 또는 URL, (3) 원인 분류(HTTP 상태/타임아웃/연결오류), (4) 재시도 소진 여부를 포함한 영어 메시지를 출력하고 종료 코드 1을 반환해야 한다.
 - **FR-009**: 킷의 원격 소스 URL 패턴: `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/kits/{kit_name}/` (기본값: `devcomfort/multikit/main`).
 - **FR-010**: 각 킷은 `manifest.json`을 포함해야 하며, 최소 필드: `{"name": string, "version": string, "agents": [filename, ...], "prompts": [filename, ...]}`를 선언해야 한다. `multikit install`은 이 매니페스트를 먼저 다운로드한 후, 선언된 파일만 개별 다운로드한다.
-- **FR-011**: `multikit diff <kit>` 명령은 설치된 킷의 로컬 파일과 원격 최신 버전을 비교하여 파일별 diff를 출력해야 하며, 원격 파일 조회는 `aiohttp` 기반 제한 동시성으로 수행해야 한다. 로컬 수정(사용자 편집)과 원격 업데이트(레포지토리 변경) 양쪽을 모두 감지해야 한다.
+- **FR-011**: `multikit diff <kit>` 명령은 설치된 킷의 로컬 파일과 원격 최신 버전을 비교하여 파일별 diff를 출력해야 하며, 원격 파일 조회는 `aiohttp` 기반 제한 동시성(기본 8, `network.max_concurrency` 오버라이드)으로 수행해야 한다. 기본 레지스트리/소스 기준 URL을 사용하고, 사용자가 `--registry <url>`를 명시한 경우에만 조회 기준을 오버라이드해야 한다. 로컬 수정(사용자 편집)과 원격 업데이트(레포지토리 변경) 양쪽을 모두 감지해야 한다.
 - **FR-012**: `multikit install` 시 로컬 파일이 원격과 다를 경우, 파일별로 diff를 표시하고 `[y(덮어쓰기)/n(건너뛰기)/a(모두 덮어쓰기)/s(모두 건너뛰기)]` 대화식 확인을 수행해야 한다. `--force` 플래그로 확인 없이 전체 덮어쓰기가 가능해야 한다.
 - **FR-013**: `multikit install`은 원자적(atomic) 설치를 수행해야 한다. 모든 킷 파일을 임시 디렉토리에 먼저 다운로드한 후, 전부 성공 시에만 `.github/agents/`와 `.github/prompts/`로 이동한다. 다운로드 실패 시 임시 파일을 삭제하고 기존 프로젝트 파일을 변경하지 않는다.
 - **FR-014**: `multikit install <kit>`은 항상 원격 최신 버전을 기준으로 동작해야 한다. 현재 로컬에 기록된 버전은 상태 표시/비교에 사용하되 버전 pinning 동작은 제공하지 않는다.
-- **FR-015**: `multikit update [kit]` 명령은 설치된 킷만 대상으로 원격 최신 버전을 재적용해야 한다. 인자 없이 실행 시 설치된 킷 다중 선택을 지원해야 하며, 선택 결과 중 하나라도 실패하면 종료 코드 1을 반환해야 한다.
+- **FR-015**: `multikit update [kit]` 명령은 설치된 킷만 대상으로 원격 최신 버전을 재적용해야 한다. 인자 없이 실행 시 설치된 킷 다중 선택을 지원해야 하며, 선택 결과 중 하나라도 실패하면 종료 코드 1을 반환해야 한다. `--force` 플래그를 제공하여 충돌 파일 확인 프롬프트 없이 덮어쓰기를 수행해야 한다. 기본 레지스트리/소스 기준 URL을 사용하고, 사용자가 `--registry <url>`를 명시한 경우에만 원격 기준을 오버라이드해야 한다.
 - **FR-016**: 프로그램 자체 업데이트(`multikit` 패키지 업그레이드)는 MVP 범위에서 CLI 명령으로 제공하지 않으며, 공식 사용 경로를 패키지 매니저(`pip`, `uv`, `rye`)로 정의해야 한다.
-- **FR-017**: `install`/`diff` 구현은 비동기 파일 I/O를 위해 `aiofiles`를 사용해야 하며, 임시 스테이징/비교 단계에서 블로킹 I/O를 최소화해야 한다.
+- **FR-017**: `install`/`diff`/`update` 구현은 비동기 파일 I/O를 위해 `aiofiles`를 사용해야 하며, 임시 스테이징/비교 단계에서 블로킹 I/O를 최소화해야 한다.
+- **FR-018**: `install`/`diff`/`update` 경로는 명령 핸들러부터 네트워크/파일 I/O까지 end-to-end async로 구현해야 한다.
+- **FR-019**: `install`/`diff`/`update`의 원격 요청은 `429`/`5xx`/`ConnectTimeout`에 대해 최대 3회 재시도(0.5s, 1s, 2s + jitter)를 적용해야 한다.
+- **FR-020**: 원격 조회를 수행하는 모든 명령(`install`, `list`, `diff`, `update`)은 기본 레지스트리/소스 기준 URL을 기본값으로 사용해야 하며, `--registry <url>`가 명시된 경우에만 해당 명령 실행 범위에서 일시적으로 오버라이드해야 한다.
 
 ### Key Entities
 
 - **Kit**: 재사용 가능한 에이전트+프롬프트 번들. 속성: name, version, files (agents[], prompts[]), source.
 - **Registry**: 킷이 호스팅되는 원격 저장소. MVP에서는 단일 GitHub 리포지토리. 루트에 `registry.json`을 두어 사용 가능한 킷 목록을 선언. 스키마: `{kits: [{name: string, version: string, description?: string}, ...]}`.
-- **Config (multikit.toml)**: 프로젝트별 설치 상태를 추적하는 설정 파일. 설치된 킷 목록, 버전 정보, 킷별 설치 파일 목록을 포함하며 uninstall/delete 대상 계산의 기준이 된다.
+- **Config (multikit.toml)**: 프로젝트별 설치 상태를 추적하는 설정 파일. 설치된 킷 목록, 버전 정보, 킷별 설치 파일 목록을 포함하며 uninstall/delete 대상 계산의 기준이 된다. 또한 네트워크 동시성 설정 `network.max_concurrency`(기본 8, optional)를 포함할 수 있다.
 - **Manifest (manifest.json)**: 킷 루트에 위치하는 메타데이터 파일. 스키마: `{name: string, version: string, description?: string, agents: string[], prompts: string[]}`. `install` 시 `raw.githubusercontent.com/.../kits/{kit}/manifest.json`을 먼저 GET하여 파일 목록을 확인한 후 개별 파일을 다운로드한다.
 
 ## Non-Functional Requirements
 
-| Requirement     | Target                                                                                   |
-| --------------- | ---------------------------------------------------------------------------------------- |
-| Python 호환     | ≥ 3.10                                                                                   |
-| 설치 크기       | `src/multikit/` 소스 코드 < 5MB (third-party 패키지 제외, `du -sh src/multikit/`로 측정) |
-| 명령 응답 시간  | < 3초 (원격 install, 비동기 동시 다운로드), < 2초 (원격 diff), < 500ms (로컬 명령)       |
-| 테스트 커버리지 | ≥ 90%                                                                                    |
-| 에러 메시지     | 영어 기본 (한국어 지원은 P1으로 연기)                                                    |
-| 대상 IDE        | VS Code Copilot Chat 전용 (타 IDE 미지원)                                                |
-| HTTP 클라이언트 | aiohttp (install/diff 비동기 처리), 필요 시 httpx는 단건 조회 용도로만 사용              |
-| 파일 I/O        | aiofiles (install/diff의 파일 읽기/쓰기 경로 비동기 처리)                                |
+| Requirement     | Target                                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Python 호환     | ≥ 3.10                                                                                                                                                                                     |
+| 설치 크기       | `src/multikit/` 소스 코드 < 5MB (third-party 패키지 제외, `du -sh src/multikit/`로 측정)                                                                                                   |
+| 명령 응답 시간  | < 3초 (원격 install/update, 비동기 동시 다운로드), < 2초 (원격 diff), < 500ms (로컬 명령)                                                                                                  |
+| 테스트 커버리지 | ≥ 90%                                                                                                                                                                                      |
+| 에러 메시지     | 영어 기본 (한국어 지원은 P1으로 연기)                                                                                                                                                      |
+| 대상 IDE        | VS Code Copilot Chat 전용 (타 IDE 미지원)                                                                                                                                                  |
+| HTTP 클라이언트 | aiohttp (install/diff/update 비동기 처리), 필요 시 httpx는 단건 조회 용도로만 사용                                                                                                         |
+| 파일 I/O        | aiofiles (install/diff/update의 파일 읽기/쓰기 경로 비동기 처리)                                                                                                                           |
+| 성능 게이트     | 벤치마크 기준 초과 시 기본 동작은 경고 출력(exit 0). `--strict` 플래그 사용 시 기준 초과를 테스트 실패(exit 1)로 처리. CI에서 `--strict`를 붙여 hard gate로 운용할지는 프로젝트 팀이 결정. |
 
 ## Success Criteria _(mandatory)_
 
@@ -191,3 +210,6 @@
 - **SC-003**: `multikit uninstall` 후 해당 킷의 파일이 제거되고 `multikit.toml`에서 해당 킷 섹션이 제거되어야 한다. 공유 참조 예외가 감지되면 파일은 보존되고 경고가 출력되어야 한다.
 - **SC-004**: 네트워크 오류 시 `multikit install`이 비정상 종료(crash) 없이 에러 메시지를 출력하고 exit code 1을 반환한다.
 - **SC-005**: MVP 범위의 모든 CLI 명령에 대해 테스트 커버리지 ≥ 90%를 달성한다.
+- **SC-006**: `multikit update` 실행 시 선택된 킷의 `multikit.toml` 버전/파일 목록이 최신 원격 기준으로 갱신되어야 하며, 다건 처리 중 일부 실패 시 종료 코드 1을 반환해야 한다.
+- **SC-007**: `multikit update --force` 실행 시 충돌 파일이 존재해도 `y/n/a/s` 대화식 프롬프트 없이 완료되어야 하며, 테스트에서 프롬프트 호출 횟수 0으로 검증되어야 한다.
+- **SC-008**: `install`/`diff`/`update` 경로에서 `429`/`5xx`/`ConnectTimeout` 발생 시 최대 3회 재시도 후 성공 또는 실패를 결정해야 하며, 테스트에서 재시도 횟수(최대 3)와 백오프 단계(`0.5s → 1s → 2s`) 적용을 검증해야 한다.

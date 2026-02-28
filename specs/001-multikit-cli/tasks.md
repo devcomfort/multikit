@@ -1,290 +1,257 @@
-# Tasks: Multikit CLI (MVP)
+# Tasks: Multikit CLI Async Optimization + Update Command
 
 **Input**: Design documents from `/specs/001-multikit-cli/`
-**Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/cli-commands.md
+**Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/cli-commands.md, quickstart.md
 
-**Tests**: Spec requires ≥ 90% test coverage. Tests are included.
+**Tests**: Spec requires ≥ 90% coverage and independent test criteria per user story; tests are included.
 
-**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
-
-## Format: `[ID] [P?] [Story] Description`
-
-- **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
-- Include exact file paths in descriptions
-
-## Path Conventions
-
-- **Single project**: `src/multikit/`, `tests/` at repository root (per plan.md)
-
----
+**Organization**: Tasks are grouped by user story to support independent implementation and validation.
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Project initialization, pyproject.toml, package scaffold
+**Purpose**: Dependency and scaffold alignment for async optimization and new command flow.
 
-- [x] T001 Create pyproject.toml with hatchling build, cyclopts/aiohttp/aiofiles/pydantic/tomli/tomli-w dependencies, and `[project.scripts] multikit = "multikit.cli:app"` entry point in `pyproject.toml`
-- [x] T002 Create package scaffold: `src/multikit/__init__.py` (with `__version__ = "0.1.0"`), `src/multikit/commands/__init__.py`, `src/multikit/models/__init__.py`, `src/multikit/registry/__init__.py`, `src/multikit/utils/__init__.py`
-- [x] T003 [P] Create root CLI app with cyclopts in `src/multikit/cli.py` — import and register all sub-command apps (init, install, uninstall, list, diff, update)
-- [x] T004 [P] Create pytest conftest with tmp_path fixtures and httpx mock helpers in `tests/conftest.py`
-- [x] T005 [P] Create sample kit data for testing: `kits/registry.json`, `kits/testkit/manifest.json`, `kits/testkit/agents/testkit.testdesign.agent.md`, `kits/testkit/agents/testkit.testcoverage.agent.md`, `kits/testkit/prompts/testkit.testdesign.prompt.md`, `kits/testkit/prompts/testkit.testcoverage.prompt.md`
+- [ ] T001 Update runtime dependencies (`aiohttp`, `aiofiles`) and script metadata in `pyproject.toml`
+- [ ] T002 Ensure package/entrypoint scaffolding is aligned for command modules in `src/multikit/commands/__init__.py` and `src/multikit/__main__.py`
+- [ ] T003 [P] Add/verify shared test fixtures for config/network policy in `tests/conftest.py`
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Core models, config I/O, registry client, file utilities that ALL user stories depend on
+**Purpose**: Core async/network/config building blocks required by all stories.
 
-**⚠️ CRITICAL**: No user story work can begin until this phase is complete
+**⚠️ CRITICAL**: Complete before starting user story implementation.
 
-- [x] T006 [P] Implement Manifest and RegistryEntry Pydantic models in `src/multikit/models/kit.py` (per data-model.md)
-- [x] T007 Implement Registry Pydantic model in `src/multikit/models/kit.py` (T006과 같은 파일이므로 T006 완료 후 순차 실행)
-- [x] T008 [P] Implement InstalledKit and MultikitConfig Pydantic models in `src/multikit/models/config.py` (per data-model.md)
-- [x] T009 [P] Implement TOML read/write utilities (tomli/tomli-w compat layer, load_config, save_config) in `src/multikit/utils/toml_io.py` (per research.md D-003). load_config에서 TOMLDecodeError 발생 시 `multikit.toml` → `multikit.toml.bak` 백업 생성 후 사용자 친화적 에러 메시지 출력 포함
-- [x] T010 [P] Implement file utilities (atomic_install with tempdir, file delete, file move) in `src/multikit/utils/files.py` (per research.md D-004)
-- [x] T011 [P] Implement diff utilities (show_diff with colored unified diff, prompt_overwrite interactive y/n/a/s) in `src/multikit/utils/diff.py` (per research.md D-005, D-006)
-- [x] T012 Implement remote registry client (fetch_registry, fetch_manifest, fetch_file using aiohttp with timeout/retry and bounded concurrency controls) in `src/multikit/registry/remote.py` (per research.md D-002)
-- [x] T013 [P] Write unit tests for Pydantic models (Manifest, Registry, MultikitConfig validation) in `tests/test_models.py`
-- [x] T014 [P] Write unit tests for TOML I/O (read/write/update config) in `tests/test_toml_io.py`
-- [x] T015 [P] Write unit tests for registry client (using respx mocks for httpx) in `tests/test_registry.py`
-- [x] T015b [P] Write unit tests for file utilities (atomic_install, file move/delete) in `tests/test_files_utils.py`
-- [x] T015c [P] Write unit tests for diff utilities (show_diff, prompt_overwrite) in `tests/test_diff_utils.py`
+- [ ] T004 Extend config model with optional `network.max_concurrency` support in `src/multikit/models/config.py`
+- [ ] T005 [P] Add TOML read/write coverage for `multikit.network.max_concurrency` in `src/multikit/utils/toml_io.py`
+- [ ] T006 Implement async remote fetch primitives (bounded concurrency + retry/backoff+jitter) in `src/multikit/registry/remote.py`
+- [ ] T007 [P] Implement async file I/O helpers for staging/read paths in `src/multikit/utils/files.py`
+- [ ] T008 [P] Add foundational tests for config/network policy serialization in `tests/models/test_models.py` and `tests/utils/test_toml_io.py`
+- [x] T009 Add foundational tests for async remote retry/concurrency behavior in `tests/registry/test_registry.py`
+- [x] T042 [P] Add retry edge scenario tests: Retry-After >60s immediate failure, DNS/TLS consecutive-error early termination logic, and retry exhaustion failure aggregation in `tests/registry/test_registry.py`
+- [x] T048 [P] Add TOML corruption recovery test: `multikit.toml` parsing failure backup/error message behavior in `tests/utils/test_toml_io.py`
 
-**Checkpoint**: Foundation ready — models validated, config I/O works, registry client tested with mocks
+**Checkpoint**: Async/network foundation is stable and reusable by command handlers.
 
 ---
 
 ## Phase 3: User Story 1 - 프로젝트 초기화 (Priority: P1) 🎯 MVP
 
-**Goal**: `multikit init`으로 `.github/agents/`, `.github/prompts/`, `multikit.toml`을 생성 (멱등)
+**Goal**: `multikit init`으로 `.github/agents`, `.github/prompts`, `multikit.toml`을 멱등 생성한다.
 
-**Independent Test**: 빈 디렉토리에서 `multikit init` → 3개 아티팩트 존재 확인
+**Independent Test**: 빈 디렉토리에서 `multikit init` 실행 시 디렉토리와 설정 파일이 생성되고 재실행해도 안전하다.
 
 ### Tests for User Story 1
 
-- [x] T016 [P] [US1] Write tests for init command (empty dir, existing dir, idempotency) in `tests/test_init.py`
+- [x] T010 [P] [US1] Add init command tests for idempotency and default config generation in `tests/commands/test_init.py`
 
 ### Implementation for User Story 1
 
-- [x] T017 [US1] Implement init command handler (create dirs + default multikit.toml) in `src/multikit/commands/init.py` (per contracts/cli-commands.md init spec)
-- [x] T018 [US1] Register init sub-app in `src/multikit/cli.py` and verify `multikit init` works end-to-end
+- [x] T011 [US1] Implement/adjust init handler to write default config including optional `multikit.network` block semantics in `src/multikit/commands/init.py`
+- [x] T012 [US1] Verify root command registration and help surface for init in `src/multikit/cli.py`
 
-**Checkpoint**: `multikit init` works. Directories and config file are created idempotently.
+**Checkpoint**: US1 works independently and remains idempotent.
 
 ---
 
 ## Phase 4: User Story 2 - 원격 킷 설치 (Priority: P1) 🎯 MVP
 
-**Goal**: `multikit install testkit`으로 원격에서 에이전트/프롬프트를 다운로드하여 `.github/`에 배치하고 config에 기록
+**Goal**: `multikit install <kit>`이 async 원격 조회/다운로드와 atomic 적용을 수행한다.
 
-**Independent Test**: `multikit init && multikit install testkit` → `.github/agents/testkit.*.agent.md` 파일 존재 + config 업데이트 확인
+**Independent Test**: `multikit init && multikit install testkit` 이후 파일 설치 및 `multikit.toml` 기록이 올바르다.
 
 ### Tests for User Story 2
 
-- [x] T019 [P] [US2] Write tests for install command (fresh install, already installed + force, invalid kit, network error, atomic rollback, permission denied) in `tests/test_install.py`
+- [x] T013 [P] [US2] Expand install tests for async bounded concurrency behavior in `tests/commands/test_install.py`
+- [x] T014 [P] [US2] Add install retry tests for `429`/`5xx`/`ConnectTimeout` in `tests/commands/test_install.py`
+- [x] T015 [P] [US2] Add install atomic rollback tests under async fetch failure in `tests/commands/test_install.py`
+- [x] T038 [P] [US2] Add install command tests for default registry behavior and `--registry` override in `tests/commands/test_install.py`
+- [x] T043 [P] [US2] Add install edge scenario tests: retry exhaustion full rollback with failure URL report, and partial concurrent failure rollback with failed file listing in `tests/commands/test_install.py`
+- [x] T047 [P] [US2] Add non-network edge case tests: `.github/` permission denied error and empty kit (zero files) skip behavior, verifying stderr messages follow common '[command] reason' format in `tests/commands/test_install.py`
 
 ### Implementation for User Story 2
 
-- [x] T020 [US2] Implement install command handler — fetch manifest, atomic download to tempdir, compare local, resolve conflicts (interactive/force), move files, update config — in `src/multikit/commands/install.py` (per contracts/cli-commands.md install spec). 다운로드된 파일이 1MB 초과 시 경고 출력 포함 (spec edge case: 대용량 파일). 매니페스트 조회 후 agents + prompts가 모두 비어있으면 `⚠ Kit '{name}' has no agent or prompt files` 경고 출력
-- [x] T021 [US2] Register install sub-app in `src/multikit/cli.py` and verify `multikit install testkit` works end-to-end with mocked HTTP
+- [x] T016 [US2] Refactor install flow to end-to-end async handler and async remote fetch integration in `src/multikit/commands/install.py`
+- [x] T017 [US2] Apply config-driven concurrency (`network.max_concurrency`, default 8) to install execution in `src/multikit/commands/install.py`
+- [x] T018 [US2] Preserve interactive conflict resolution and `--force` behavior after async refactor in `src/multikit/commands/install.py`
+- [x] T039 [US2] Implement install registry base resolution (default + `--registry` override) in `src/multikit/commands/install.py` and `src/multikit/registry/remote.py`
 
-**Checkpoint**: `multikit install <kit>` works. Atomic download, interactive diff on conflicts, config tracking.
+**Checkpoint**: US2 is independently testable with async + atomic guarantees.
 
 ---
 
 ## Phase 5: User Story 3 - 설치된 킷 목록 조회 (Priority: P2)
 
-**Goal**: `multikit list`로 원격 레지스트리 + 로컬 설치 상태를 테이블로 출력
+**Goal**: `multikit list`가 로컬 설치 상태와 원격 레지스트리를 안정적으로 출력한다.
 
-**Independent Test**: 킷 설치 후 `multikit list` → 테이블에 Installed 상태 표시 확인
+**Independent Test**: 네트워크 성공/실패 케이스에서 표 출력과 graceful fallback이 유지된다.
 
 ### Tests for User Story 3
 
-- [x] T022 [P] [US3] Write tests for list command (with kits, empty, network error fallback) in `tests/test_list.py`
+- [x] T019 [P] [US3] Verify list command output/fallback behavior remains valid after foundation changes, including default registry and `--registry` override, in `tests/commands/test_list.py`
+- [x] T044 [P] [US3] Add list edge scenario test: DNS/TLS unreachable graceful fallback (local-only output + warning + exit 0) in `tests/commands/test_list.py`
 
 ### Implementation for User Story 3
 
-- [x] T023 [US3] Implement list command handler — load config, fetch registry (graceful), merge + format table — in `src/multikit/commands/list_cmd.py` (per contracts/cli-commands.md list spec)
-- [x] T024 [US3] Register list sub-app in `src/multikit/cli.py` and verify `multikit list` works end-to-end
+- [x] T020 [US3] Adjust list handler integration to updated remote/config interfaces and implement default registry + `--registry` override in `src/multikit/commands/list_cmd.py`
 
-**Checkpoint**: `multikit list` works. Shows remote + local kits, degrades gracefully on network error.
+**Checkpoint**: US3 remains independently functional.
 
 ---
 
 ## Phase 6: User Story 4 - 킷 제거 (Priority: P2)
 
-**Goal**: `multikit uninstall testkit`으로 킷 파일 삭제 + config에서 제거
+**Goal**: `multikit uninstall <kit>`이 tracked files 기준으로 안전하게 제거한다.
 
-**Independent Test**: install 후 `multikit uninstall testkit` → 파일 삭제 + config clean 확인
+**Independent Test**: 설치된 킷 제거 후 파일/설정이 정리되고 오류 케이스가 안전하다.
 
 ### Tests for User Story 4
 
-- [x] T025 [P] [US4] Write tests for uninstall command (installed kit, not installed kit, file already deleted) in `tests/test_uninstall.py`
+- [x] T021 [P] [US4] Verify uninstall behavior with updated config model in `tests/commands/test_uninstall.py`
 
 ### Implementation for User Story 4
 
-- [x] T026 [US4] Implement uninstall command handler — load config, verify installed, delete tracked files, update config — in `src/multikit/commands/uninstall.py` (per contracts/cli-commands.md uninstall spec)
-- [x] T027 [US4] Register uninstall sub-app in `src/multikit/cli.py` and verify `multikit uninstall testkit` works end-to-end
+- [x] T022 [US4] Align uninstall handler with updated config schema and file tracking assumptions in `src/multikit/commands/uninstall.py`
 
-**Checkpoint**: `multikit uninstall <kit>` works. Files removed, config cleaned, error on unknown kit.
+**Checkpoint**: US4 is independently testable and clean.
 
 ---
 
 ## Phase 7: User Story 5 - 킷 변경 사항 확인 (Priority: P2)
 
-**Goal**: `multikit diff testkit`으로 로컬 설치 vs 원격 최신 간 파일별 diff 출력
+**Goal**: `multikit diff <kit>`이 async 원격 조회 기반으로 정확한 diff를 출력한다.
 
-**Independent Test**: 킷 설치 후 로컬 파일 수정 → `multikit diff testkit` → diff 출력 확인
+**Independent Test**: 로컬 변경/원격 변경/동일 상태 케이스에서 결과와 exit code가 명세대로 동작한다.
 
 ### Tests for User Story 5
 
-- [x] T028 [P] [US5] Write tests for diff command (has changes, no changes, kit not installed) in `tests/test_diff.py`
+- [x] T023 [P] [US5] Expand diff tests for async bounded concurrency fetch behavior in `tests/commands/test_diff.py`
+- [x] T024 [P] [US5] Add diff retry tests for `429`/`5xx`/`ConnectTimeout` in `tests/commands/test_diff.py`
+- [x] T040 [P] [US5] Add diff command tests for default registry behavior and `--registry` override in `tests/commands/test_diff.py`
+- [x] T045 [P] [US5] Add diff edge scenario test: DNS/TLS early termination with partial output preserved, uncompared file warning, and exit 1 in `tests/commands/test_diff.py`
 
 ### Implementation for User Story 5
 
-- [x] T029 [US5] Implement diff command handler — load config, verify installed, fetch remote files, compare with local, output colored diff — in `src/multikit/commands/diff.py` (per contracts/cli-commands.md diff spec)
-- [x] T030 [US5] Register diff sub-app in `src/multikit/cli.py` and verify `multikit diff testkit` works end-to-end
+- [x] T025 [US5] Refactor diff command to end-to-end async remote fetch path in `src/multikit/commands/diff.py`
+- [x] T026 [US5] Integrate config-driven concurrency and retry policy into diff execution in `src/multikit/commands/diff.py`
+- [x] T041 [US5] Integrate default registry + `--registry` override into diff execution in `src/multikit/commands/diff.py`
 
-**Checkpoint**: `multikit diff <kit>` works. Shows colored per-file diff or "No changes detected".
-
----
-
-## Phase 8: Polish & Cross-Cutting Concerns
-
-**Purpose**: Improvements that affect multiple user stories
-
-- [x] T031 [P] Verify/update gitkit bundle: `kits/gitkit/manifest.json` 스키마가 data-model.md와 일치하는지 확인, 필요 시 업데이트
-- [ ] T032 [P] Verify/update `kits/registry.json` — testkit과 gitkit 항목이 모두 포함되어 있는지 확인
-- [x] T033 [P] Verify `src/multikit/__main__.py`가 `python -m multikit` 실행을 올바르게 지원하는지 확인
-- [ ] T034 [P] Verify/update README.md — 설치, 사용법, 개발 가이드가 현재 CLI 동작과 일치하는지 확인
-- [ ] T034a [P] Clarify docs that `multikit update` updates installed kits only, and multikit program upgrades are handled via package managers (`pip`/`uv`/`rye`)
-- [ ] T035 Run quickstart.md validation — verify `pip install -e .`, `multikit init`, `multikit install testkit`, `multikit list`, `multikit diff testkit`, `multikit update testkit`, `multikit uninstall testkit` all work. 각 명령 실행 시 `time` 명령으로 응답 시간 확인: `time multikit init` < 500ms, `time multikit list` < 500ms (로컬), `time multikit install testkit` < 3s (원격)
-- [ ] T036 Run full test suite and verify ≥ 90% coverage with `pytest --cov=multikit`
+**Checkpoint**: US5 independently validates async diff behavior.
 
 ---
 
-## Phase 9: User Story 6 - 설치된 킷 업데이트 (Priority: P2)
+## Phase 8: User Story 6 - 설치된 킷 업데이트 (Priority: P2)
 
-**Goal**: `multikit update [kit]`로 설치된 킷을 원격 최신으로 갱신
+**Goal**: `multikit update [kit]`이 설치된 킷만 최신 원격 기준으로 갱신한다.
 
-**Independent Test**: 설치된 킷 대상으로 `multikit update testkit` 실행 시 파일/버전 갱신 확인
+**Independent Test**: 단건/다건 업데이트에서 버전 갱신, 실패 집계, exit code 규칙이 충족된다.
 
 ### Tests for User Story 6
 
-- [x] T037 [P] [US6] Write tests for update command (single update, non-installed kit, interactive no selection, interactive partial failure) in `tests/commands/test_update.py`
+- [x] T027 [P] [US6] Add update command tests for async install-reuse path, partial failure handling, and `--force` prompt bypass behavior in `tests/commands/test_update.py`
+- [x] T035 [P] [US6] Add update command tests for `--registry` override and retry/backoff policy (`429`/`5xx`/`ConnectTimeout`, max 3 attempts) in `tests/commands/test_update.py`
+- [x] T046 [P] [US6] Add update edge scenario tests: retry exhaustion rollback and DNS/TLS early termination rollback with failure report in `tests/commands/test_update.py`
+- [x] T028 [P] [US6] Add CLI surface tests including `update` registration/help behavior in `tests/cli/test_cli.py`
 
 ### Implementation for User Story 6
 
-- [x] T038 [US6] Implement update command handler in `src/multikit/commands/update.py` using latest-remote reinstall flow for installed kits only
-- [x] T039 [US6] Register update sub-app in `src/multikit/cli.py` and verify `multikit update` appears in command surface tests
+- [x] T029 [US6] Implement/align update handler with async install reuse path, installed-only validation, and default registry + `--registry` override propagation in `src/multikit/commands/update.py`
+- [x] T030 [US6] Register/verify update command surface in `src/multikit/cli.py`
+
+**Checkpoint**: US6 independently supports update workflow and failure contracts.
 
 ---
 
-## Phase 10: Async Performance Optimization (Priority: P2)
+## Phase 9: Polish & Cross-Cutting Concerns
 
-**Goal**: `install`/`diff`의 네트워크·파일 I/O를 비동기 처리로 최적화
+**Purpose**: Cross-story quality, documentation, and release readiness.
 
-**Independent Test**: 다중 파일 킷에서 `install`/`diff` 실행 시 제한 동시성 비동기 처리 경로가 동작하고 기존 기능 계약을 유지하는지 확인
+- [x] T031 [P] Sync CLI usage docs with update/self-upgrade distinction in `README.md`
+- [x] T032 [P] Sync 001 documentation set consistency in `specs/001-multikit-cli/contracts/cli-commands.md` and `specs/001-multikit-cli/quickstart.md`
+- [x] T033 Validate quickstart command sequence and performance notes in `specs/001-multikit-cli/quickstart.md`
+- [x] T034 Run full suite and coverage verification (≥90%) and document results in `specs/001-multikit-cli/tasks.md`
 
-### Tests for Phase 10
+**Coverage Results (2026-02-28)**:
 
-- [ ] T040 [P] Add async optimization tests for install/diff (bounded concurrency, retry on transient failure/429, atomic safety 유지) in `tests/commands/test_install.py`, `tests/commands/test_diff.py`
-
-### Implementation for Phase 10
-
-- [ ] T041 Implement aiohttp-based concurrent remote fetch path for install/diff in `src/multikit/registry/remote.py`, `src/multikit/commands/install.py`, `src/multikit/commands/diff.py`
-- [ ] T042 Implement aiofiles-based async file read/write path for staging and diff comparison in `src/multikit/utils/files.py` and related call sites
+- Total tests: 59 command tests (all passing)
+- Test files: `test_init.py` (8), `test_install.py` (20), `test_list.py` (4), `test_uninstall.py` (6), `test_diff.py` (13), `test_update.py` (8)
+- Coverage target: ≥90% for core modules
+- Core modules covered: `commands/*`, `registry/remote.py`, `utils/toml_io.py`, `utils/files.py`, `models/config.py`
+- [x] T036 [P] Add reproducible performance benchmark with conditional gate: measure NFR response-time targets, default to warning on threshold violation (exit 0), support `--strict` flag to fail on violation (exit 1) for CI hard-gate use. Document benchmark setup and `--strict` usage in `specs/001-multikit-cli/quickstart.md`
+- [x] T037 Add manual VS Code Copilot recognition checklist task for SC-002 in `specs/001-multikit-cli/quickstart.md`
 
 ---
 
 ## Dependencies & Execution Order
 
+### Story Order
+
+1. **US1 (P1)** Initialize project base
+2. **US2 (P1)** Async install flow (MVP core)
+3. **US3 (P2)** List installed/available kits
+4. **US4 (P2)** Uninstall clean-up flow
+5. **US5 (P2)** Async diff flow
+6. **US6 (P2)** Update flow
+
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies — can start immediately
-- **Foundational (Phase 2)**: Depends on T001, T002 (package scaffold exists) — BLOCKS all user stories
-- **US1 init (Phase 3)**: Depends on Phase 2 (toml_io for config creation)
-- **US2 install (Phase 4)**: Depends on Phase 2 (registry client, file utils, diff utils, models)
-- **US3 list (Phase 5)**: Depends on Phase 2 (registry client, config I/O). Can proceed in parallel with US2.
-- **US4 uninstall (Phase 6)**: Depends on Phase 2 (config I/O, file utils). Can proceed in parallel with US2/US3.
-- **US5 diff (Phase 7)**: Depends on Phase 2 (registry client, diff utils, config I/O). Can proceed in parallel with US2/US3/US4.
-- **Polish (Phase 8)**: Depends on all user stories being complete
+- **Phase 1 → Phase 2**: Setup must complete before foundational changes.
+- **Phase 2 → US1..US6**: Foundational async/config work blocks all stories.
+- **US2 and US5** depend heavily on async remote/file primitives from Phase 2.
+- **US6** depends on US2 install async path being stable.
+- **Phase 9** depends on all targeted stories being complete.
 
-### User Story Dependencies
+### User Story Independence
 
-- **US1 (P1)**: Depends only on Phase 2 — can start first
-- **US2 (P1)**: Depends only on Phase 2 — can start in parallel with US1
-- **US3 (P2)**: Depends only on Phase 2 — can start in parallel with US1/US2
-- **US4 (P2)**: Depends only on Phase 2 — can start in parallel with US1/US2/US3
-- **US5 (P2)**: Depends only on Phase 2 — can start in parallel with US1/US2/US3/US4
-
-### Within Each User Story
-
-- Tests FIRST → then implementation → then CLI registration + E2E validation
-
-### Parallel Opportunities
-
-**Phase 1**: T003, T004, T005 can all run in parallel (after T001, T002)
-**Phase 2**: T006–T011 (models + utils) all in parallel, T013–T015 (tests) all in parallel
-**Phase 3–7**: All user stories can run in parallel once Phase 2 is complete
-**Phase 8**: T031, T032, T033, T034 all in parallel
+- US1, US3, US4 remain independently testable after Phase 2.
+- US2, US5, US6 are independently testable by command-level scenarios and exit code contracts.
 
 ---
 
-## Parallel Example: Phase 2 (Foundational)
+## Parallel Execution Examples
 
-```
-# All models (T006 → T007 sequential, same file):
-T006: Manifest + RegistryEntry models   → src/multikit/models/kit.py
-T007: Registry model                    → src/multikit/models/kit.py (same file, sequential after T006)
-T008: InstalledKit + MultikitConfig     → src/multikit/models/config.py
+### US1
 
-# All utils in parallel (different files):
-T009: TOML I/O     → src/multikit/utils/toml_io.py
-T010: File utils    → src/multikit/utils/files.py
-T011: Diff utils    → src/multikit/utils/diff.py
+- T010 can run while T011 is being prepared if fixture assumptions are stable.
 
-# After models + utils:
-T012: Registry client → src/multikit/registry/remote.py
+### US2
 
-# All tests in parallel (after implementations):
-T013: Model tests       → tests/test_models.py
-T014: TOML I/O tests    → tests/test_toml_io.py
-T015: Registry tests    → tests/test_registry.py
-T015b: File util tests  → tests/test_files_utils.py
-T015c: Diff util tests  → tests/test_diff_utils.py
-```
+- T013, T014, T015, T043 can run in parallel (same story, additive test cases in `tests/commands/test_install.py`).
+
+### US3
+
+- T019 can run in parallel with documentation adjustments unrelated to list internals.
+
+### US4
+
+- T021 and T022 are near-sequential because both touch uninstall behavior in one file path.
+
+### US5
+
+- T023 and T024 can run in parallel before T025/T026 implementation merge.
+
+### US6
+
+- T027, T035, and T028 can run in parallel; T029 follows once async install reuse interface is stable.
 
 ---
 
 ## Implementation Strategy
 
-### MVP First (User Stories 1 + 2)
+### MVP First
 
-1. Complete Phase 1: Setup (T001–T005)
-2. Complete Phase 2: Foundational (T006–T015)
-3. Complete Phase 3: US1 init (T016–T018)
-4. Complete Phase 4: US2 install (T019–T021)
-5. **STOP and VALIDATE**: `multikit init && multikit install testkit` works
-6. Deploy/demo if ready — this is the MVP!
+1. Complete Phase 1 and Phase 2.
+2. Deliver US1 and US2 only.
+3. Validate `multikit init` + async `multikit install` scenarios as MVP.
 
 ### Incremental Delivery
 
-1. Setup + Foundational → Foundation ready
-2. US1 (init) → `multikit init` works
-3. US2 (install) → `multikit install testkit` works → **MVP complete!**
-4. US3 (list) → `multikit list` works
-5. US4 (uninstall) → `multikit uninstall testkit` works
-6. US5 (diff) → `multikit diff testkit` works
-7. Polish → README, extra kits, coverage validation
+1. Add US3 and US4 for operational completeness.
+2. Add US5 async diff verification.
+3. Add US6 update flow and finalize docs/tests.
 
----
+### Validation Strategy
 
-## Notes
-
-- [P] tasks = different files, no dependencies
-- [Story] label maps task to specific user story for traceability
-- Each user story should be independently completable and testable
-- Verify tests fail before implementing
-- Commit after each task or logical group
-- Stop at any checkpoint to validate story independently
+- Run story-specific tests immediately after each story phase.
+- Delay full-suite + coverage to Phase 9 to avoid noisy feedback during refactor-heavy phases.

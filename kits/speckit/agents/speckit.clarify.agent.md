@@ -236,7 +236,9 @@ Execution steps:
 
 Behavior rules:
 
-- **Response Language**: If the user explicitly requests a language, use that language for all output. Otherwise, infer the user's preferred language from recent conversation messages (e.g., if the user writes in Korean, respond in Korean). Technical identifiers (IDs, file paths, code snippets) remain in their original form regardless of response language.
+- **Response Language**: If the user explicitly requests a language, use that language for all output. Otherwise, infer the user's preferred language from recent conversation messages (e.g., if the user writes in Korean, respond in Korean).
+- **Localized literals**: Localize all user-facing literal labels to the selected language, including headings, table headers, field labels (`Question`, `Recommended`, `Free-form`), and follow-up prompts/instructions.
+- **Do not translate technical tokens**: Keep option letters (`A/B/C`), stable IDs (`N-*`, `D-*`), file paths, and code snippets unchanged.
 - If no meaningful ambiguities found (or all potential questions would be low-impact), respond: "No critical ambiguities detected worth formal clarification." and suggest proceeding.
 - If spec file missing, instruct user to run `/speckit.specify` first (do not create a new spec here).
 - Never exceed the user's patience; if user signals early termination, stop and integrate what has been answered.

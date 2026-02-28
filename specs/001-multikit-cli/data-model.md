@@ -47,12 +47,24 @@
   - `version: str`
   - `registry_url: str`
   - `kits: dict[str, InstalledKit]`
+  - `network.max_concurrency: int | None` (optional, default 8)
+
+### 6) NetworkPolicy
+
+- Purpose: 비동기 원격 호출 정책 정의
+- Fields:
+  - `max_concurrency: int` (default 8)
+  - `retry_attempts: int` (=3)
+  - `retry_backoff_seconds: list[float]` (`[0.5, 1.0, 2.0]`)
+  - `retry_statuses: list[int]` (`429`, `5xx`)
+  - `retry_exceptions: list[str]` (`ConnectTimeout`)
 
 ## Relationships
 
 - `Registry` 1:N `RegistryEntry`
 - `RegistryEntry(name)` 1:1 `Manifest(name)`
 - `MultikitConfig` 1:N `InstalledKit`
+- `MultikitConfig` 1:1 `NetworkPolicy` (effective runtime policy; config override optional)
 
 ## State Transitions
 
@@ -60,7 +72,7 @@
 
 1. config 로드
 2. manifest 조회
-3. tempdir 전체 다운로드
+3. tempdir 전체 다운로드 (`aiohttp` bounded concurrency)
 4. 충돌 시 diff + `[y/n/a/s]` 또는 `--force`
 5. 반영 성공 시 `kits.<name>` 갱신
 6. 실패 시 tempdir 삭제, 로컬 파일 불변
@@ -75,9 +87,16 @@
 
 ### Diff
 
-1. config/manifest/remote 파일 조회
+1. config/manifest/remote 파일 조회 (`aiohttp` bounded concurrency)
 2. 로컬 파일과 unified diff 생성
 3. 변경 없음이면 `No changes detected`
+
+### Update
+
+1. config 로드 + 설치된 킷 검증
+2. install 재사용 경로로 원격 최신 파일 async 조회/반영
+3. 성공 시 `kits.<name>` 버전/파일 목록 갱신
+4. 다건 처리 중 일부 실패 시 exit code 1
 
 ## Example TOML
 
@@ -85,6 +104,9 @@
 [multikit]
 version = "0.1.0"
 registry_url = "https://raw.githubusercontent.com/devcomfort/multikit/main/kits"
+
+[multikit.network]
+max_concurrency = 8
 
 [multikit.kits.testkit]
 version = "1.0.0"
