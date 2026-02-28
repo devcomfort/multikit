@@ -163,6 +163,24 @@ multikit uninstall
 python -m multikit --help
 ```
 
+### 네트워크 정책
+
+`install`/`diff`/`update` 명령은 비동기 처리로 최적화되어 있습니다:
+
+- **동시성**: 기본 8 개 동시 요청 (`network.max_concurrency` 로 설정 가능)
+- **재시도**: 429/5xx/ConnectTimeout 대상, 최대 3 회, 지수 백오프 (0.5s → 1s → 2s) + jitter
+- **조기 종료**: DNS/TLS 오류 3 회 연속 발생 시 호스트 unreachable 판정
+- **Retry-After**: 429 응답에 `Retry-After` 헤더가 있으면 해당 시간 대기 (60 초 초과 시 즉시 실패)
+
+커스텀 레지스트리 사용:
+
+```bash
+multikit install testkit --registry https://example.com/my-kits
+multikit list --registry https://example.com/my-kits
+multikit diff testkit --registry https://example.com/my-kits
+multikit update testkit --registry https://example.com/my-kits
+```
+
 ## 설정 파일 (`multikit.toml`)
 
 `multikit init` 실행 시 생성되는 기본 구조:
@@ -171,6 +189,12 @@ python -m multikit --help
 [multikit]
 version = "0.1.0"
 registry_url = "https://raw.githubusercontent.com/devcomfort/multikit/main/kits"
+
+[multikit.network]
+max_concurrency = 8
+max_retries = 3
+retry_base_delay = 0.5
+retry_max_delay = 2.0
 
 [multikit.kits.testkit]
 version = "1.0.0"
@@ -186,6 +210,11 @@ files = [
 ```
 
 - `registry_url`: 기본 원격 레지스트리 URL
+- `network`: 네트워크 정책 설정
+  - `max_concurrency`: 동시 요청 수 (기본 8, 범위 1-32)
+  - `max_retries`: 재시도 최대 횟수 (기본 3, 범위 0-10)
+  - `retry_base_delay`: 백오프 기본 지연 시간 (초, 기본 0.5)
+  - `retry_max_delay`: 최대 지연 시간 (초, 기본 2.0)
 - `kits.*`: 설치된 킷의 버전, 소스, 파일 목록
 
 일반적으로 수동 편집은 권장하지 않습니다.
@@ -198,6 +227,18 @@ files = [
 | `multikit.toml not found` | `multikit init` 선행 실행                                 |
 | 네트워크 오류             | 인터넷 연결 및 GitHub 접근 가능 여부 확인                 |
 | 재설치 필요               | `--force` 사용 또는 `multikit diff`로 차이 확인 후 재적용 |
+
+### 네트워크 오류
+
+- 일시적 오류 (429/5xx/타임아웃) 는 최대 3 회 자동 재시도
+- `Retry-After` 헤더 >60 초면 즉시 실패
+- DNS/TLS 오류 3 회 연속 발생 시 호스트 unreachable 판정
+
+### 설정 파일 손상
+
+- `multikit.toml` 파싱 실패 시 자동으로 `multikit.toml.corrupted.{timestamp}`로 백업
+- 기본값으로 계속 실행
+- 백업된 파일은 수동 검토 후 삭제 가능
 
 ---
 
@@ -229,17 +270,23 @@ CLI (cyclopts)
 commands/*        # 서브커맨드 로직
   ↓
 models/*          # Pydantic 모델
-registry/remote   # httpx 기반 원격 fetch
+registry/remote   # aiohttp 기반 async 원격 fetch (retry/backoff/concurrency)
 utils/*           # TOML I/O, atomic 파일 처리, diff, interactive prompt
 ```
 
 Install 흐름:
 
-1. `registry.json` 조회 및 `Registry` 파싱
+1. `registry.json` 조회 및 `Registry` 파싱 (async, retry/backoff)
 2. 대상 킷의 `manifest.json` 조회 및 `Manifest` 파싱
-3. 파일 임시 다운로드(atomic staging)
+3. 파일 임시 다운로드 (atomic staging, bounded concurrency)
 4. 충돌 검사 후 사용자 확인 또는 `--force`
 5. `.github/` 반영 및 `multikit.toml` 갱신
+
+Update 흐름:
+
+- `install` 재사용 경로로 원격 최신 파일 async 조회/반영
+- 동일한 async 네트워크/파일 I/O 정책 적용
+- `multikit.toml` 버전/파일 목록 갱신
 
 ### 기술 스택
 
@@ -247,7 +294,8 @@ Install 흐름:
 | --------------- | ------------------------------------------------------ | ----------------------------------------- |
 | Language        | Python ≥ 3.10                                          | 모던 문법 및 타입 힌트 지원               |
 | CLI Framework   | [cyclopts](https://github.com/BrianPugh/cyclopts)      | 타입 힌트 기반 인자 파싱, 서브커맨드 패턴 |
-| HTTP Client     | [httpx](https://www.python-httpx.org/)                 | 경량, requests 유사 API, 확장성           |
+| HTTP Client     | [aiohttp](https://docs.aiohttp.org/)                   | 비동기 HTTP, 재시도/동시성 정책 지원      |
+| Async I/O       | [aiofiles](https://github.com/Tinche/aiofiles)         | 비동기 파일 I/O                           |
 | Data Validation | [Pydantic](https://docs.pydantic.dev/) v2              | JSON/TOML ↔ 모델 변환, 검증               |
 | Config Format   | TOML (`tomli`, `tomli-w`)                              | 가독성, Python 생태계 친화성              |
 | Interactive UX  | [questionary](https://github.com/tmbo/questionary)     | 다중 선택 기반 터미널 UX                  |
@@ -288,8 +336,9 @@ tests/
 
 - 프레임워크: pytest
 - 커버리지 기준: 90% 이상 (`fail_under=90`)
-- 네트워크 모킹: respx
+- 네트워크 모킹: aioresponses (aiohttp 전용)
 - 멀티 버전 검증: tox (Python 3.10–3.13)
+- 정적 분석: ruff, mypy
 
 ```bash
 rye run test
