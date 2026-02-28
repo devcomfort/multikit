@@ -5,7 +5,11 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from multikit.models.config import InstalledKit, MultikitConfig
+from multikit.models.config import (
+    InstalledKit,
+    MultikitConfig,
+    NetworkConfig,
+)
 from multikit.models.kit import Manifest, Registry, RegistryEntry
 
 
@@ -153,3 +157,63 @@ class TestMultikitConfig:
         config = MultikitConfig(kits={"testkit": kit})
         assert config.get_kit("testkit") is kit
         assert config.get_kit("other") is None
+
+
+class TestNetworkConfig:
+    """Tests for NetworkConfig model."""
+
+    def test_default_values(self) -> None:
+
+        config = NetworkConfig()
+        assert config.max_concurrency == 8
+        assert config.max_retries == 3
+        assert config.retry_base_delay == 0.5
+        assert config.retry_max_delay == 2.0
+
+    def test_custom_values(self) -> None:
+
+        config = NetworkConfig(
+            max_concurrency=16,
+            max_retries=5,
+            retry_base_delay=1.0,
+            retry_max_delay=10.0,
+        )
+        assert config.max_concurrency == 16
+        assert config.max_retries == 5
+        assert config.retry_base_delay == 1.0
+        assert config.retry_max_delay == 10.0
+
+    def test_max_concurrency_bounds(self) -> None:
+
+        # Valid bounds
+        config = NetworkConfig(max_concurrency=1)
+        assert config.max_concurrency == 1
+        config = NetworkConfig(max_concurrency=32)
+        assert config.max_concurrency == 32
+
+        # Out of bounds
+        with pytest.raises(ValidationError):
+            NetworkConfig(max_concurrency=0)
+        with pytest.raises(ValidationError):
+            NetworkConfig(max_concurrency=33)
+
+    def test_max_retries_bounds(self) -> None:
+
+        # Valid bounds
+        config = NetworkConfig(max_retries=0)
+        assert config.max_retries == 0
+        config = NetworkConfig(max_retries=10)
+        assert config.max_retries == 10
+
+        # Out of bounds
+        with pytest.raises(ValidationError):
+            NetworkConfig(max_retries=-1)
+        with pytest.raises(ValidationError):
+            NetworkConfig(max_retries=11)
+
+    def test_multikit_config_with_network(self) -> None:
+
+        network = NetworkConfig(max_concurrency=16)
+        config = MultikitConfig(network=network)
+        assert config.network.max_concurrency == 16
+        assert config.network.max_retries == 3  # default

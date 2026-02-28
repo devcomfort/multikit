@@ -69,3 +69,20 @@ def sample_registry() -> dict:
 
 SAMPLE_AGENT_CONTENT = "# Test Agent\n\nThis is a sample agent file.\n"
 SAMPLE_PROMPT_CONTENT = "# Test Prompt\n\nThis is a sample prompt file.\n"
+
+
+@pytest.fixture
+def default_registry_url() -> str:
+    """Return the default registry URL for testing."""
+    return "https://raw.githubusercontent.com/devcomfort/multikit/main/kits"
+
+
+@pytest.fixture
+def network_config() -> dict:
+    """Return sample network configuration with max_concurrency."""
+    return {
+        "max_concurrency": 8,
+        "max_retries": 3,
+        "retry_base_delay": 0.5,
+        "retry_max_delay": 2.0,
+    }

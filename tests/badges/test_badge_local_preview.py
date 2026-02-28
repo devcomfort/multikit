@@ -10,25 +10,25 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
     import tomli as tomllib
 
 
-def _pyproject() -> dict:
+def _pyproject() -> dict[str, object]:
     repo_root = Path(__file__).resolve().parents[2]
     content = (repo_root / "pyproject.toml").read_text(encoding="utf-8")
-    return tomllib.loads(content)
+    return tomllib.loads(content)  # type: ignore[return-value, no-any-return]
 
 
 def test_badge_preview_script_exists() -> None:
     pyproject = _pyproject()
-    scripts = pyproject["tool"]["rye"]["scripts"]
+    scripts = pyproject["tool"]["rye"]["scripts"]  # type: ignore[index]
     assert "badge:preview" in scripts
 
 
 def test_badge_preview_script_emits_coverage_xml() -> None:
     pyproject = _pyproject()
-    preview = pyproject["tool"]["rye"]["scripts"]["badge:preview"]
+    preview = pyproject["tool"]["rye"]["scripts"]["badge:preview"]  # type: ignore[index]
     assert "--cov-report=xml:coverage.xml" in preview
 
 
 def test_test_cov_script_emits_coverage_xml() -> None:
     pyproject = _pyproject()
-    test_cov = pyproject["tool"]["rye"]["scripts"]["test:cov"]
+    test_cov = pyproject["tool"]["rye"]["scripts"]["test:cov"]  # type: ignore[index]
     assert "--cov-report=xml:coverage.xml" in test_cov
