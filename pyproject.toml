@@ -45,6 +45,7 @@ test = "pytest tests/ -v"
 "test:cov" = "pytest tests/ --cov=multikit --cov-report=term-missing --cov-report=xml:coverage.xml"
 "test:tox" = "tox"
 "badge:preview" = "pytest tests/ --cov=multikit --cov-report=term --cov-report=xml:coverage.xml -q"
+"test:integration" = { cmd = "./scripts/integration-test.sh" }
 lint = "ruff check src/ tests/"
 format = "ruff format src/ tests/"
 
@@ -56,6 +57,7 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+addopts = "--ignore=tests/integration"
 
 [tool.coverage.run]
 source = ["multikit"]
