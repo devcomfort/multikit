@@ -1,0 +1,14 @@
+{
+  "kits": [
+    {
+      "name": "demokit",
+      "version": "1.0.0",
+      "description": "Demo kit for integration testing"
+    },
+    {
+      "name": "alphakit",
+      "version": "2.0.0",
+      "description": "Second demo kit for multi-install testing"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "demokit",
+  "version": "1.0.0",
+  "description": "Demo kit for integration testing",
+  "agents": [
+    "demokit.demo.agent.md"
+  ],
+  "prompts": [
+    "demokit.demo.prompt.md"
+  ]
+}

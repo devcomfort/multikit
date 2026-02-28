@@ -1,0 +1,11 @@
+{
+  "name": "alphakit",
+  "version": "2.0.0",
+  "description": "Second demo kit for multi-install testing",
+  "agents": [
+    "alphakit.alpha.agent.md"
+  ],
+  "prompts": [
+    "alphakit.alpha.prompt.md"
+  ]
+}

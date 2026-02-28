@@ -1,0 +1,34 @@
+# ====================================================================
+# Docker Compose — multikit CLI integration tests
+#
+# Usage:
+#   docker compose -f tests/integration/docker-compose.yml up --build --abort-on-container-exit
+#
+# What it does:
+#   1. Starts an nginx container serving a mock kit registry
+#   2. Runs pytest integration tests that call `multikit` CLI via subprocess
+# ====================================================================
+
+services:
+  # --- Mock registry (nginx serving static JSON / Markdown files) ---
+  mock-registry:
+    build:
+      context: ../..
+      dockerfile: tests/integration/Dockerfile.registry
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1/registry.json"]
+      interval: 1s
+      timeout: 2s
+      start_period: 3s
+      retries: 15
+
+  # --- Integration test runner ---
+  test-runner:
+    build:
+      context: ../..
+      dockerfile: tests/integration/Dockerfile.test
+    environment:
+      MOCK_REGISTRY_URL: "http://mock-registry"
+    depends_on:
+      mock-registry:
+        condition: service_healthy

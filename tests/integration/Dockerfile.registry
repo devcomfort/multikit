@@ -1,0 +1,14 @@
+# ------------------------------------------------------------------
+# Mock Registry — serves static kit files for integration tests
+# ------------------------------------------------------------------
+FROM nginx:1-alpine
+
+RUN apk add --no-cache curl
+
+COPY tests/integration/fixtures/registry/ /usr/share/nginx/html/
+COPY tests/integration/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=1s --timeout=2s --start-period=3s --retries=15 \
+    CMD curl -sf http://127.0.0.1/registry.json > /dev/null || exit 1

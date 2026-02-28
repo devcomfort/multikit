@@ -1,0 +1,26 @@
+# ------------------------------------------------------------------
+# Integration Test Runner — installs multikit + pytest, runs e2e tests
+# ------------------------------------------------------------------
+FROM python:3.10-slim
+
+# Avoid buffered output so pytest prints appear in real time
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /build
+
+# Copy project source and build metadata
+COPY pyproject.toml .
+COPY README.md .
+COPY src/ src/
+
+# Install multikit (as a proper CLI tool) + test runner
+RUN pip install --no-cache-dir . pytest
+
+# Copy integration test files
+COPY tests/integration/conftest.py  /tests/
+COPY tests/integration/test_cli_e2e.py /tests/
+
+# Default working directory for CLI operations (tests create temp dirs)
+WORKDIR /workspace
+
+CMD ["pytest", "/tests/", "-v", "--tb=short", "-x"]
