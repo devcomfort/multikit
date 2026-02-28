@@ -214,3 +214,23 @@ class TestUninstallConfigCorruption:
 
         captured = capsys.readouterr()
         assert "Corrupted multikit.toml" in captured.err
+
+    def test_uninstall_load_config_raises_exits_one(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """U01: load_config raises unexpected Exception → handler catches, exits 1."""
+        monkeypatch.chdir(initialized_project)
+
+        def _raise_unexpected(_path):
+            raise RuntimeError("Unexpected error reading config")
+
+        monkeypatch.setattr(
+            "multikit.commands.uninstall.load_config", _raise_unexpected
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            uninstall_handler("testkit")
+        assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        assert "Config corrupted" in captured.err

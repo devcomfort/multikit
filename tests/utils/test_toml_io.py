@@ -274,3 +274,18 @@ class TestBackupFailure:
         assert config.kits == {}
         captured = capsys.readouterr()
         assert "Failed to backup corrupted config" in captured.err
+
+
+class TestBackupNonExistentConfig:
+    """Test _backup_corrupted_config with non-existent file (T01)."""
+
+    def test_backup_nonexistent_file_returns_early(self, tmp_path: Path) -> None:
+        """T01: _backup_corrupted_config(nonexistent) returns immediately."""
+        from multikit.utils.toml_io import _backup_corrupted_config
+
+        nonexistent = tmp_path / "does_not_exist.toml"
+        # Should not raise, no backup created
+        _backup_corrupted_config(nonexistent)
+        # Verify no backup files created
+        backups = list(tmp_path.glob("*.corrupted.*"))
+        assert backups == []

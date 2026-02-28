@@ -746,24 +746,80 @@ class TestInstallHTTPErrors:
 
 
 class TestInstallNetworkErrors:
-    """Tests for network error handling in install command."""
+    """Tests for network error handling in install command — function-level mocking."""
 
     @pytest.mark.asyncio
-    async def test_install_file_network_error(
+    async def test_install_manifest_client_error(
         self, initialized_project: Path, monkeypatch, capsys
     ) -> None:
-        """Test install handles network error when downloading file."""
+        """I01: Manifest fetch raises generic ClientError."""
         monkeypatch.chdir(initialized_project)
 
-        m = aioresponses()
-        with m:
-            m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
-            m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
-                exception=aiohttp.ClientError("Network error"),
-            )
-            with pytest.raises(SystemExit):
-                await install_handler("testkit")
+        async def _raise_client_error(_url, _kit):
+            raise aiohttp.ClientError("Connection reset")
+
+        monkeypatch.setattr(
+            "multikit.commands.install.fetch_manifest", _raise_client_error
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            await install_handler("testkit")
+        assert exc_info.value.code == 1
 
         captured = capsys.readouterr()
-        assert "Failed to download" in captured.err
+        assert "Network error:" in captured.err
+
+    @pytest.mark.asyncio
+    async def test_install_file_client_response_error_non_404(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """I02: File download raises ClientResponseError(status=403)."""
+        monkeypatch.chdir(initialized_project)
+
+        from multikit.models.kit import Manifest
+
+        async def _mock_manifest(_url, _kit):
+            return Manifest(**SAMPLE_MANIFEST)
+
+        async def _raise_403(_url, _kit, _subdir, _filename):
+            raise aiohttp.ClientResponseError(
+                request_info=mock.Mock(),
+                history=(),
+                status=403,
+                message="Forbidden",
+            )
+
+        monkeypatch.setattr("multikit.commands.install.fetch_manifest", _mock_manifest)
+        monkeypatch.setattr("multikit.commands.install.fetch_file", _raise_403)
+
+        with pytest.raises(SystemExit) as exc_info:
+            await install_handler("testkit")
+        assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        assert "HTTP error 403 downloading" in captured.err
+
+    @pytest.mark.asyncio
+    async def test_install_file_client_error(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """I03: File download raises generic ClientError."""
+        monkeypatch.chdir(initialized_project)
+
+        from multikit.models.kit import Manifest
+
+        async def _mock_manifest(_url, _kit):
+            return Manifest(**SAMPLE_MANIFEST)
+
+        async def _raise_client_error(_url, _kit, _subdir, _filename):
+            raise aiohttp.ClientError("Connection timeout")
+
+        monkeypatch.setattr("multikit.commands.install.fetch_manifest", _mock_manifest)
+        monkeypatch.setattr("multikit.commands.install.fetch_file", _raise_client_error)
+
+        with pytest.raises(SystemExit) as exc_info:
+            await install_handler("testkit")
+        assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        assert "Network error downloading" in captured.err

@@ -92,3 +92,46 @@ def test_select_installed_kits_selected_and_cancel(monkeypatch) -> None:
         lambda *_args, **_kwargs: _FakeCheckbox(None),
     )
     assert select_installed_kits(config, action="diff") == []
+
+
+class _HangingThread:
+    """Fake Thread whose is_alive() always returns True (simulates hang)."""
+
+    def __init__(self, target=None, **kwargs):
+        pass
+
+    def start(self):
+        pass
+
+    def join(self, timeout=None):
+        pass  # returns immediately without completing
+
+    def is_alive(self):
+        return True  # pretend still running
+
+
+def test_select_installable_kits_thread_timeout(monkeypatch, capsys) -> None:
+    """P01: Thread hangs → returns [] with timeout message."""
+    config = MultikitConfig()
+    registry = Registry(
+        kits=[RegistryEntry(name="testkit", version="1.0.0", description="")]
+    )
+    monkeypatch.setattr("multikit.utils.prompt.Thread", _HangingThread)
+
+    selected = select_installable_kits(config, registry)
+
+    assert selected == []
+    captured = capsys.readouterr()
+    assert "Prompt timed out" in captured.err
+
+
+def test_select_installed_kits_thread_timeout(monkeypatch, capsys) -> None:
+    """P02: Thread hangs → returns [] with timeout message."""
+    config = MultikitConfig(kits={"gitkit": InstalledKit(version="1.0.0", files=[])})
+    monkeypatch.setattr("multikit.utils.prompt.Thread", _HangingThread)
+
+    selected = select_installed_kits(config, action="diff")
+
+    assert selected == []
+    captured = capsys.readouterr()
+    assert "Prompt timed out" in captured.err

@@ -561,47 +561,191 @@ class TestDiffHTTPErrors:
 
 
 class TestDiffNetworkErrors:
-    """Tests for network error handling in diff command."""
+    """Tests for network error handling in diff command — function-level mocking."""
 
     @pytest.mark.asyncio
-    async def test_diff_fetch_file_network_error(
+    async def test_diff_manifest_client_response_error_non_404(
         self, initialized_project: Path, monkeypatch, capsys
     ) -> None:
-        """Test diff handles network error when fetching file."""
+        """D01: Manifest fetch raises ClientResponseError(status=403)."""
         monkeypatch.chdir(initialized_project)
 
-        # Create local file
+        config = MultikitConfig(
+            kits={"testkit": InstalledKit(version="1.0.0", files=[])}
+        )
+        save_config(initialized_project, config)
+
+        async def _raise_403(_url, _kit):
+            raise aiohttp.ClientResponseError(
+                request_info=mock.Mock(),
+                history=(),
+                status=403,
+                message="Forbidden",
+            )
+
+        monkeypatch.setattr("multikit.commands.diff.fetch_manifest", _raise_403)
+
+        with pytest.raises(SystemExit) as exc_info:
+            await diff_handler("testkit")
+        assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        assert "HTTP error 403 fetching manifest" in captured.err
+
+    @pytest.mark.asyncio
+    async def test_diff_manifest_client_error(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """D02: Manifest fetch raises generic ClientError."""
+        monkeypatch.chdir(initialized_project)
+
+        config = MultikitConfig(
+            kits={"testkit": InstalledKit(version="1.0.0", files=[])}
+        )
+        save_config(initialized_project, config)
+
+        async def _raise_client_error(_url, _kit):
+            raise aiohttp.ClientError("Connection reset by peer")
+
+        monkeypatch.setattr(
+            "multikit.commands.diff.fetch_manifest", _raise_client_error
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            await diff_handler("testkit")
+        assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        assert "Network error:" in captured.err
+
+    @pytest.mark.asyncio
+    async def test_diff_file_fetch_client_response_error(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """D03: Individual file fetch raises ClientResponseError."""
+        monkeypatch.chdir(initialized_project)
+
         agents_dir = initialized_project / ".github" / "agents"
+        prompts_dir = initialized_project / ".github" / "prompts"
         agents_dir.mkdir(parents=True, exist_ok=True)
+        prompts_dir.mkdir(parents=True, exist_ok=True)
         (agents_dir / "testkit.testdesign.agent.md").write_text(
-            "local content\n", encoding="utf-8"
+            "content\n", encoding="utf-8"
+        )
+        (prompts_dir / "testkit.testdesign.prompt.md").write_text(
+            "content\n", encoding="utf-8"
         )
 
         config = MultikitConfig(
             kits={
                 "testkit": InstalledKit(
                     version="1.0.0",
-                    files=["agents/testkit.testdesign.agent.md"],
+                    files=[
+                        "agents/testkit.testdesign.agent.md",
+                        "prompts/testkit.testdesign.prompt.md",
+                    ],
                 )
             }
         )
         save_config(initialized_project, config)
 
-        m = aioresponses()
-        with m:
-            m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
-            # Simulate network error for file fetch
-            m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
-                exception=aiohttp.ClientError("Network error"),
-            )
+        from multikit.models.kit import Manifest
 
-            # Network error triggers retry logic, which leads to HostUnreachableError
-            # after 3 consecutive failures. We expect the error to propagate.
-            with pytest.raises(Exception) as exc_info:
-                await diff_handler("testkit")
-            assert "unreachable" in str(exc_info.value).lower()
+        async def _mock_manifest(_url, _kit):
+            return Manifest(**SAMPLE_MANIFEST)
+
+        call_count = 0
+
+        async def _raise_on_file(_url, _kit, _subdir, _filename):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise aiohttp.ClientResponseError(
+                    request_info=mock.Mock(),
+                    history=(),
+                    status=500,
+                    message="Server Error",
+                )
+            return "content\n"
+
+        monkeypatch.setattr("multikit.commands.diff.fetch_manifest", _mock_manifest)
+        monkeypatch.setattr("multikit.commands.diff.fetch_file", _raise_on_file)
+
+        await diff_handler("testkit")
 
         captured = capsys.readouterr()
-        # Should show warning about fetch failure before host unreachable
         assert "Could not fetch remote" in captured.err
+
+    @pytest.mark.asyncio
+    async def test_diff_file_fetch_client_error(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """D04: Individual file fetch raises generic ClientError."""
+        monkeypatch.chdir(initialized_project)
+
+        agents_dir = initialized_project / ".github" / "agents"
+        prompts_dir = initialized_project / ".github" / "prompts"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        prompts_dir.mkdir(parents=True, exist_ok=True)
+        (agents_dir / "testkit.testdesign.agent.md").write_text(
+            "content\n", encoding="utf-8"
+        )
+        (prompts_dir / "testkit.testdesign.prompt.md").write_text(
+            "content\n", encoding="utf-8"
+        )
+
+        config = MultikitConfig(
+            kits={
+                "testkit": InstalledKit(
+                    version="1.0.0",
+                    files=[
+                        "agents/testkit.testdesign.agent.md",
+                        "prompts/testkit.testdesign.prompt.md",
+                    ],
+                )
+            }
+        )
+        save_config(initialized_project, config)
+
+        from multikit.models.kit import Manifest
+
+        async def _mock_manifest(_url, _kit):
+            return Manifest(**SAMPLE_MANIFEST)
+
+        call_count = 0
+
+        async def _raise_on_file(_url, _kit, _subdir, _filename):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise aiohttp.ClientError("Connection refused")
+            return "content\n"
+
+        monkeypatch.setattr("multikit.commands.diff.fetch_manifest", _mock_manifest)
+        monkeypatch.setattr("multikit.commands.diff.fetch_file", _raise_on_file)
+
+        await diff_handler("testkit")
+
+        captured = capsys.readouterr()
+        assert "Network error fetching" in captured.err
+
+    @pytest.mark.asyncio
+    async def test_diff_handler_config_load_exception(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """D05: Handler-level load_config raises unexpected Exception."""
+        monkeypatch.chdir(initialized_project)
+
+        def _raise_validation_error(_path):
+            raise RuntimeError("Pydantic validation failed")
+
+        monkeypatch.setattr(
+            "multikit.commands.diff.load_config", _raise_validation_error
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            await diff_handler("testkit")
+        assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        assert "Config corrupted" in captured.err

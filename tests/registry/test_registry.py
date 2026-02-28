@@ -433,3 +433,250 @@ class TestRetryEdgeCases:
             )
         finally:
             m.stop()
+
+
+class TestIsDnsTlsErrorFalse:
+    """Test _is_dns_tls_error returning False for non-connection errors (R01)."""
+
+    def test_returns_false_for_client_response_error(self) -> None:
+        """HTTP-level ClientResponseError is NOT a DNS/TLS error."""
+        client = RemoteClient()
+        error = aiohttp.ClientResponseError(
+            request_info=mock.Mock(),
+            history=(),
+            status=403,
+            message="Forbidden",
+        )
+        assert client._is_dns_tls_error(error) is False
+
+    def test_returns_false_for_runtime_error(self) -> None:
+        client = RemoteClient()
+        assert client._is_dns_tls_error(RuntimeError("unexpected")) is False
+
+    def test_returns_false_for_os_error(self) -> None:
+        client = RemoteClient()
+        assert client._is_dns_tls_error(OSError("disk full")) is False
+
+
+class TestGetRetryAfterDelay:
+    """Test _get_retry_after_delay edge cases (R02, R03)."""
+
+    def test_returns_none_for_empty_headers(self) -> None:
+        """Missing Retry-After header returns None."""
+        client = RemoteClient()
+        assert client._get_retry_after_delay({}) is None
+
+    def test_returns_none_for_empty_string_value(self) -> None:
+        """Empty string Retry-After returns None."""
+        client = RemoteClient()
+        assert client._get_retry_after_delay({"Retry-After": ""}) is None
+
+    def test_returns_zero_for_zero_value(self) -> None:
+        """Retry-After: 0 is valid and returns 0.0."""
+        client = RemoteClient()
+        assert client._get_retry_after_delay({"Retry-After": "0"}) == 0.0
+
+    def test_returns_float_for_float_string(self) -> None:
+        """Retry-After: 2.5 returns 2.5."""
+        client = RemoteClient()
+        assert client._get_retry_after_delay({"Retry-After": "2.5"}) == 2.5
+
+
+class TestRetryWith429:
+    """Tests for 429 handling branches (R04, R06, R07)."""
+
+    @pytest.mark.asyncio
+    async def test_429_with_retry_after_then_success(self) -> None:
+        """R04: 429 + Retry-After ≤ 60s → wait and retry, then succeed."""
+        url = f"{BASE_URL}/registry.json"
+        m = aioresponses()
+        with m:
+            # First request: 429 with Retry-After: 0 (no real wait)
+            m.get(url, status=429, headers={"Retry-After": "0"})
+            # Second request: success
+            m.get(url, payload={"kits": []})
+
+            client = RemoteClient(
+                network_config=NetworkConfig(max_retries=3, retry_base_delay=0.1)
+            )
+            try:
+                registry = await client.fetch_registry(BASE_URL)
+                assert isinstance(registry, Registry)
+                assert registry.kits == []
+            finally:
+                await client.close()
+
+    @pytest.mark.asyncio
+    async def test_429_without_retry_after_header(self) -> None:
+        """R06: 429 without Retry-After → exponential backoff retry."""
+        url = f"{BASE_URL}/registry.json"
+        m = aioresponses()
+        with m:
+            # First request: 429 without Retry-After
+            m.get(url, status=429)
+            # Second request: success
+            m.get(url, payload={"kits": []})
+
+            client = RemoteClient(
+                network_config=NetworkConfig(max_retries=3, retry_base_delay=0.1)
+            )
+            try:
+                registry = await client.fetch_registry(BASE_URL)
+                assert isinstance(registry, Registry)
+            finally:
+                await client.close()
+
+    @pytest.mark.asyncio
+    async def test_4xx_non_429_immediate_reraise(self) -> None:
+        """R07: 4xx (non-429) re-raised immediately without retry."""
+        url = f"{BASE_URL}/registry.json"
+        m = aioresponses()
+        with m:
+            # 403 Forbidden — should NOT retry
+            m.get(url, status=403)
+
+            client = RemoteClient(
+                network_config=NetworkConfig(max_retries=5, retry_base_delay=0.1)
+            )
+            try:
+                with pytest.raises(aiohttp.ClientResponseError) as exc_info:
+                    await client.fetch_registry(BASE_URL)
+                assert exc_info.value.status == 403
+            finally:
+                await client.close()
+
+    @pytest.mark.asyncio
+    async def test_429_retry_after_exhausts_retries(self) -> None:
+        """429 with small Retry-After that exhausts all retries."""
+        url = f"{BASE_URL}/registry.json"
+        m = aioresponses()
+        with m:
+            # All attempts return 429 with Retry-After: 0
+            for _ in range(3):
+                m.get(url, status=429, headers={"Retry-After": "0"})
+
+            client = RemoteClient(
+                network_config=NetworkConfig(max_retries=3, retry_base_delay=0.1)
+            )
+            try:
+                with pytest.raises(RemoteFetchError) as exc_info:
+                    await client.fetch_registry(BASE_URL)
+                assert exc_info.value.attempts == 3
+            finally:
+                await client.close()
+
+
+class TestHostUnreachableMixedErrors:
+    """Tests for mixed DNS/TLS error types in host tracking (R10)."""
+
+    def test_mixed_error_types_no_trigger(self) -> None:
+        """2× gaierror + 1× SSLError → different types, no HostUnreachableError."""
+        client = RemoteClient()
+        url = "https://example.com/foo"
+        # Two DNS errors
+        client._check_host_unreachable(url, socket.gaierror())
+        client._check_host_unreachable(url, socket.gaierror())
+        # Third error is different type → should NOT trigger
+        # (SSLError is a different error_type string)
+        client._check_host_unreachable(url, ssl.SSLError())
+        # No exception raised — passed
+
+    def test_host_errors_trimmed_to_last_three(self) -> None:
+        """Error history is trimmed to last 3 entries."""
+        client = RemoteClient()
+        url = "https://example.com/foo"
+        # Add 4 errors of different types (alternating)
+        client._check_host_unreachable(url, socket.gaierror())
+        client._check_host_unreachable(url, ssl.SSLError())
+        client._check_host_unreachable(url, socket.gaierror())
+        client._check_host_unreachable(url, ssl.SSLError())
+        # Last 3: [ssl, gaierror, ssl] — no 3 consecutive same type
+        # No exception raised
+
+    def test_clear_host_errors_after_success(self) -> None:
+        """_clear_host_errors resets history for a host."""
+        client = RemoteClient()
+        url = "https://example.com/foo"
+        client._check_host_unreachable(url, socket.gaierror())
+        client._check_host_unreachable(url, socket.gaierror())
+        # Clear errors (simulating successful request)
+        client._clear_host_errors(url)
+        # Now 2 more errors should not trigger (history was reset)
+        client._check_host_unreachable(url, socket.gaierror())
+        client._check_host_unreachable(url, socket.gaierror())
+        # Only 2 consecutive — no exception
+
+
+class TestFetchFilesConcurrentErrors:
+    """Tests for fetch_files_concurrent error propagation (R14, R15)."""
+
+    @pytest.mark.asyncio
+    async def test_concurrent_fetch_success(self) -> None:
+        """R15: Successful concurrent fetch returns correct mapping."""
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/testkit/agents/a.agent.md", body="agent content")
+            m.get(f"{BASE_URL}/testkit/prompts/p.prompt.md", body="prompt content")
+
+            client = RemoteClient()
+            try:
+                result = await client.fetch_files_concurrent(
+                    BASE_URL,
+                    "testkit",
+                    [("agents", "a.agent.md"), ("prompts", "p.prompt.md")],
+                )
+                assert result[("agents", "a.agent.md")] == "agent content"
+                assert result[("prompts", "p.prompt.md")] == "prompt content"
+            finally:
+                await client.close()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_fetch_error_propagation(self) -> None:
+        """R14: Error in one file propagates from fetch_files_concurrent."""
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/testkit/agents/a.agent.md", body="ok")
+            m.get(f"{BASE_URL}/testkit/prompts/p.prompt.md", status=404)
+
+            client = RemoteClient()
+            try:
+                with pytest.raises(aiohttp.ClientResponseError):
+                    await client.fetch_files_concurrent(
+                        BASE_URL,
+                        "testkit",
+                        [("agents", "a.agent.md"), ("prompts", "p.prompt.md")],
+                    )
+            finally:
+                await client.close()
+
+
+class TestCalculateDelay:
+    """Test _calculate_delay boundary (R16)."""
+
+    def test_delay_capped_at_exponent_3(self) -> None:
+        """Exponent caps at 3 even for attempt > 3."""
+        client = RemoteClient(
+            network_config=NetworkConfig(retry_base_delay=1.0, retry_max_delay=30.0)
+        )
+        # attempt=3: delay = 1.0 * 2^3 = 8.0 ± jitter
+        delay_3 = client._calculate_delay(3)
+        # attempt=10: exponent still capped at 3, so same base = 8.0
+        delay_10 = client._calculate_delay(10)
+        # Both should be in range [6.4, 9.6] (8.0 ± 20%)
+        assert 6.0 <= delay_3 <= 10.0
+        assert 6.0 <= delay_10 <= 10.0
+
+
+class TestExternalSession:
+    """Test external session handling (R17)."""
+
+    @pytest.mark.asyncio
+    async def test_external_session_not_closed(self) -> None:
+        """close() should NOT close an externally provided session."""
+        external_session = aiohttp.ClientSession()
+        client = RemoteClient(session=external_session)
+        await client.close()
+        # External session should still be open
+        assert not external_session.closed
+        # Clean up
+        await external_session.close()
