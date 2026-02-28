@@ -15,7 +15,7 @@ from multikit.utils.toml_io import load_config
 app = App(name="update", help="Update installed kit(s) to latest remote version.")
 
 
-def _update_single_kit(
+async def _update_single_kit(
     kit_name: str,
     project_dir: Path,
     github_dir: Path,
@@ -30,7 +30,7 @@ def _update_single_kit(
         return False
 
     print(f"Updating '{kit_name}'...")
-    return _install_single_kit(
+    return await _install_single_kit(
         kit_name=kit_name,
         project_dir=project_dir,
         github_dir=github_dir,
@@ -40,7 +40,7 @@ def _update_single_kit(
 
 
 @app.default
-def handler(
+async def handler(
     kit_name: Annotated[
         str | None,
         Parameter(help="Name of the installed kit to update (interactive if omitted)"),
@@ -73,7 +73,7 @@ def handler(
 
         failed: list[str] = []
         for name in kit_names:
-            if not _update_single_kit(
+            if not await _update_single_kit(
                 name,
                 project_dir=project_dir,
                 github_dir=github_dir,
@@ -86,7 +86,7 @@ def handler(
             print(f"\n✗ Failed to update: {', '.join(failed)}", file=sys.stderr)
             sys.exit(1)
     else:
-        if not _update_single_kit(
+        if not await _update_single_kit(
             kit_name,
             project_dir=project_dir,
             github_dir=github_dir,
@@ -94,3 +94,23 @@ def handler(
             force=force,
         ):
             sys.exit(1)
+
+
+def update_handler(
+    kit_name: Annotated[
+        str | None,
+        Parameter(help="Name of the kit to update (interactive if omitted)"),
+    ] = None,
+    *,
+    force: Annotated[
+        bool, Parameter(help="Overwrite all without confirmation")
+    ] = False,
+    registry: Annotated[
+        str | None,
+        Parameter(name="--registry", help="Custom registry base URL"),
+    ] = None,
+) -> None:
+    """Sync wrapper for update handler."""
+    import asyncio
+
+    asyncio.run(handler(kit_name, force=force, registry=registry))

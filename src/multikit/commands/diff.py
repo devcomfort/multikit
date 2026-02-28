@@ -5,10 +5,10 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import httpx
+import aiohttp
 from cyclopts import App
 
-from multikit.registry.remote import fetch_file, fetch_manifest
+from multikit.registry.remote import RemoteFetchError, fetch_file, fetch_manifest
 from multikit.utils.diff import generate_diff, print_colored_diff
 from multikit.utils.prompt import select_installed_kits
 from multikit.utils.toml_io import load_config
@@ -16,7 +16,7 @@ from multikit.utils.toml_io import load_config
 app = App(name="diff", help="Show diff between local and remote kit files.")
 
 
-def _diff_single_kit(
+async def _diff_single_kit(
     kit_name: str,
     project_dir: Path,
     github_dir: Path,
@@ -32,17 +32,23 @@ def _diff_single_kit(
     assert installed_kit is not None
 
     try:
-        manifest = fetch_manifest(config.registry_url, kit_name)
-    except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == 404:
+        manifest = await fetch_manifest(config.registry_url, kit_name)
+    except RemoteFetchError as exc:
+        print(
+            f"✗ Failed to fetch manifest after {exc.attempts} attempts: {exc}",
+            file=sys.stderr,
+        )
+        return False
+    except aiohttp.ClientResponseError as exc:
+        if exc.status == 404:
             print(f"✗ Kit '{kit_name}' not found in remote registry", file=sys.stderr)
         else:
             print(
-                f"✗ HTTP error {exc.response.status_code} fetching manifest",
+                f"✗ HTTP error {exc.status} fetching manifest",
                 file=sys.stderr,
             )
         return False
-    except httpx.RequestError as exc:
+    except aiohttp.ClientError as exc:
         print(f"✗ Network error: {exc}", file=sys.stderr)
         return False
 
@@ -59,11 +65,16 @@ def _diff_single_kit(
         local_path = github_dir / subdir / filename
 
         try:
-            remote_content = fetch_file(config.registry_url, kit_name, subdir, filename)
-        except httpx.HTTPStatusError:
+            remote_content = await fetch_file(
+                config.registry_url, kit_name, subdir, filename
+            )
+        except RemoteFetchError:
             print(f"  ⚠ Could not fetch remote {subdir}/{filename}", file=sys.stderr)
             continue
-        except httpx.RequestError:
+        except aiohttp.ClientResponseError:
+            print(f"  ⚠ Could not fetch remote {subdir}/{filename}", file=sys.stderr)
+            continue
+        except aiohttp.ClientError:
             print(f"  ⚠ Network error fetching {subdir}/{filename}", file=sys.stderr)
             continue
 
@@ -97,7 +108,7 @@ def _diff_single_kit(
 
 
 @app.default
-def handler(kit_name: str | None = None) -> None:
+async def handler(kit_name: str | None = None) -> None:
     """Show differences for an installed kit.
 
     Parameters
@@ -122,10 +133,17 @@ def handler(kit_name: str | None = None) -> None:
             sys.exit(0)
         has_changes = False
         for name in kit_names:
-            if not _diff_single_kit(name, project_dir, github_dir):
+            if not await _diff_single_kit(name, project_dir, github_dir):
                 has_changes = True
         if has_changes:
             sys.exit(1)
     else:
-        if not _diff_single_kit(kit_name, project_dir, github_dir):
+        if not await _diff_single_kit(kit_name, project_dir, github_dir):
             sys.exit(1)
+
+
+def diff_handler(kit_name: str | None = None) -> None:
+    """Sync wrapper for diff handler."""
+    import asyncio
+
+    asyncio.run(handler(kit_name))
