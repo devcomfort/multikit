@@ -6,11 +6,16 @@ import sys
 from pathlib import Path
 from typing import Annotated
 
-import httpx
+import aiohttp
 from cyclopts import App, Parameter
 
 from multikit.models.config import InstalledKit
-from multikit.registry.remote import fetch_file, fetch_manifest, fetch_registry
+from multikit.registry.remote import (
+    RemoteFetchError,
+    fetch_file,
+    fetch_manifest,
+    fetch_registry,
+)
 from multikit.utils.diff import prompt_overwrite, show_diff
 from multikit.utils.files import atomic_staging, move_staged_files, stage_file
 from multikit.utils.prompt import select_installable_kits
@@ -19,7 +24,7 @@ from multikit.utils.toml_io import load_config, save_config
 app = App(name="install", help="Install a kit from the registry.")
 
 
-def _install_single_kit(
+async def _install_single_kit(
     kit_name: str,
     project_dir: Path,
     github_dir: Path,
@@ -32,17 +37,23 @@ def _install_single_kit(
     # Fetch manifest
     print(f"Fetching manifest for '{kit_name}'...")
     try:
-        manifest = fetch_manifest(registry_url, kit_name)
-    except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == 404:
+        manifest = await fetch_manifest(registry_url, kit_name)
+    except RemoteFetchError as exc:
+        print(
+            f"✗ Failed to fetch manifest after {exc.attempts} attempts: {exc}",
+            file=sys.stderr,
+        )
+        return False
+    except aiohttp.ClientResponseError as exc:
+        if exc.status == 404:
             print(f"✗ Kit '{kit_name}' not found", file=sys.stderr)
         else:
             print(
-                f"✗ HTTP error {exc.response.status_code} fetching manifest",
+                f"✗ HTTP error {exc.status} fetching manifest",
                 file=sys.stderr,
             )
         return False
-    except httpx.RequestError as exc:
+    except aiohttp.ClientError as exc:
         print(f"✗ Network error: {exc}", file=sys.stderr)
         return False
 
@@ -56,21 +67,27 @@ def _install_single_kit(
             for subdir, filename in manifest.all_files:
                 print(f"  Downloading {subdir}/{filename}...")
                 try:
-                    content = fetch_file(registry_url, kit_name, subdir, filename)
-                except httpx.HTTPStatusError as exc:
-                    if exc.response.status_code == 404:
+                    content = await fetch_file(registry_url, kit_name, subdir, filename)
+                except RemoteFetchError as exc:
+                    print(
+                        f"✗ Failed to download {subdir}/{filename} after {exc.attempts} attempts: {exc}",
+                        file=sys.stderr,
+                    )
+                    return False
+                except aiohttp.ClientResponseError as exc:
+                    if exc.status == 404:
                         print(
                             f"✗ File not found: {subdir}/{filename}",
                             file=sys.stderr,
                         )
                     else:
                         print(
-                            f"✗ HTTP error {exc.response.status_code} downloading "
+                            f"✗ HTTP error {exc.status} downloading "
                             f"{subdir}/{filename}",
                             file=sys.stderr,
                         )
                     return False
-                except httpx.RequestError as exc:
+                except aiohttp.ClientError as exc:
                     print(
                         f"✗ Network error downloading {subdir}/{filename}: {exc}",
                         file=sys.stderr,
@@ -145,7 +162,7 @@ def _install_single_kit(
 
 
 @app.default
-def handler(
+async def handler(
     kit_name: Annotated[
         str | None,
         Parameter(help="Name of the kit to install (interactive if omitted)"),
@@ -159,7 +176,7 @@ def handler(
         Parameter(name="--registry", help="Custom registry base URL"),
     ] = None,
 ) -> None:
-    """Install a kit by name.
+    """Async install handler.
 
     Parameters
     ----------
@@ -181,7 +198,7 @@ def handler(
     # Interactive multi-select when kit_name is not provided
     if kit_name is None:
         try:
-            remote_registry = fetch_registry(registry_url)
+            remote_registry = await fetch_registry(registry_url)
         except Exception:
             print("✗ Cannot fetch registry for interactive selection.", file=sys.stderr)
             sys.exit(1)
@@ -190,7 +207,7 @@ def handler(
             sys.exit(0)
         failed = []
         for name in kit_names:
-            if not _install_single_kit(
+            if not await _install_single_kit(
                 name, project_dir, github_dir, registry_url, force
             ):
                 failed.append(name)
@@ -198,7 +215,21 @@ def handler(
             print(f"\n✗ Failed to install: {', '.join(failed)}", file=sys.stderr)
             sys.exit(1)
     else:
-        if not _install_single_kit(
+        if not await _install_single_kit(
             kit_name, project_dir, github_dir, registry_url, force
         ):
             sys.exit(1)
+
+
+def install_handler(
+    kit_name: Annotated[str | None, Parameter(help="Kit name to install")] = None,
+    *,
+    force: Annotated[
+        bool, Parameter(help="Overwrite existing files without prompting")
+    ] = False,
+    registry: Annotated[str | None, Parameter(help="Custom registry URL")] = None,
+) -> None:
+    """Install handler wrapper for cyclopts."""
+    import asyncio
+
+    asyncio.run(handler(kit_name, force=force, registry=registry))

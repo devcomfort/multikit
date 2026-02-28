@@ -1,62 +1,61 @@
-# Research: Multikit CLI (MVP)
+# Research: Multikit CLI Async Optimization + Update
 
-## Decision 1: CLI 프레임워크는 `cyclopts` 유지
+## Decision 1: `update` 명령을 독립 command로 제공
 
-- Decision: 모든 명령(`init/install/list/uninstall/diff`)을 `cyclopts` App + subcommand 구조로 구성한다.
-- Rationale: 헌법의 Intuitive CLI Experience/타입힌트 기반 규칙과 직접 정합된다.
+- Decision: `multikit update [kit]`를 추가하고, 단건 + 인터랙티브 다건 흐름을 지원한다.
+- Rationale: 설치된 kit 유지보수 경로를 `install`과 분리해 의도를 명확히 하고 운영 UX를 단순화한다.
 - Alternatives considered:
-  - `argparse`: 표준 라이브러리지만 서브앱 구성/타입힌트 경험이 상대적으로 약함.
-  - `click/typer`: 가능하지만 기존 코드/가이드가 cyclopts 중심이라 전환 이득이 낮음.
+  - `install` 재실행만 사용: 동작은 가능하나 명령 의도가 불명확하고 사용자 혼동 유발.
+  - 별도 self-update 포함: CLI 패키지 업데이트 정책과 충돌.
 
-## Decision 2: 원격 통신은 `httpx` sync + timeout/상태코드 기반 에러 처리
+## Decision 2: 성능 민감 경로를 `aiohttp` 중심 async로 전환
 
-- Decision: `httpx` sync client로 `registry.json`, `manifest.json`, 각 파일 다운로드를 수행한다.
-- Rationale: 현재 MVP는 CLI 단발 실행 위주이며 async 복잡도 없이 충분한 안정성을 제공한다.
+- Decision: `install`/`diff`/`update`의 원격 조회는 `aiohttp` 기반 비동기 경로로 구현한다.
+- Rationale: 다파일 다운로드/비교에서 순차 I/O 병목을 줄여 NFR(<3s install/update, <2s diff)를 달성한다.
 - Alternatives considered:
-  - `requests`: 기능적으로 가능하지만 프로젝트 기존 의존성과 중복.
-  - async client: 향후 확장 가능하나 MVP 구현 비용 증가.
+  - `httpx` sync 유지: 구현 단순하지만 대량 파일에서 성능 목표 달성이 어려움.
+  - 전면 `httpx` async: 가능하나 기존 명세가 `aiohttp`를 명시해 기준 불일치.
 
-## Decision 3: 파일 탐색은 `manifest.json` 선언 기반
+## Decision 3: 파일 I/O는 `aiofiles`로 비동기화
 
-- Decision: 킷 파일 목록은 `manifest.json`의 `agents[]`, `prompts[]`만 신뢰한다.
-- Rationale: 파일 시스템 스캔보다 예측 가능하며 계약 기반 검증이 가능하다.
+- Decision: staging/비교 경로의 파일 read/write에 `aiofiles`를 사용한다.
+- Rationale: 네트워크 async만 적용하면 디스크 I/O에서 다시 병목이 생길 수 있어 end-to-end async 정책과 불일치한다.
 - Alternatives considered:
-  - 디렉토리 스캔: 암묵적 규칙 증가, 누락/오탐 가능성 높음.
+  - 동기 파일 I/O 유지: 구현 단순하지만 FR-017/FR-018 위반.
 
-## Decision 4: 설치 전략은 atomic staging
+## Decision 4: 동시성 정책은 기본 8 + 설정 오버라이드
 
-- Decision: 임시 디렉토리 전체 다운로드 성공 후에만 `.github/`로 반영한다.
-- Rationale: 중간 실패 시 부분 설치를 방지해 clean operation 원칙을 만족한다.
+- Decision: 기본 동시성은 8로 고정하고 `multikit.toml`의 `network.max_concurrency`로 오버라이드한다.
+- Rationale: 기본값은 테스트 재현성을 보장하고, 환경별 성능 튜닝 유연성도 제공한다.
 - Alternatives considered:
-  - 즉시 반영(streaming install): 부분 실패 시 롤백 부담이 커짐.
+  - 고정값만 사용: 환경 최적화 어려움.
+  - 완전 적응형만 사용: 테스트/회귀 재현성이 떨어짐.
 
-## Decision 5: 충돌 해결은 파일별 diff + 대화식 선택
+## Decision 5: 재시도 정책은 429/5xx/timeout 대상 3회 지수 백오프
 
-- Decision: 기존 파일과 원격 파일이 다르면 diff 출력 후 `[y/n/a/s]`로 결정하고, `--force`는 일괄 덮어쓰기.
-- Rationale: 사용자 제어와 안전성 균형.
+- Decision: `429`/`5xx`/`ConnectTimeout`에 대해 최대 3회 재시도, 지수 백오프(0.5s/1s/2s)+jitter를 적용한다.
+- Rationale: 일시적 장애에 대한 복원력을 확보하면서도 무제한 재시도를 방지한다.
 - Alternatives considered:
-  - 무조건 덮어쓰기: 로컬 커스터마이징 손실 위험.
-  - 무조건 스킵: 업데이트 적용이 어려움.
+  - 재시도 없음: 실패율 상승.
+  - 사용자 플래그로 완전 노출: MVP 운영 복잡도 증가.
 
-## Decision 6: uninstall은 단독 소유 모델(MVP)
+## Decision 6: async 도입 경계는 명령 핸들러 포함 end-to-end
 
-- Decision: `multikit.toml`의 킷별 `files[]`를 기준으로 삭제한다. 공유 참조 감지 시 삭제하지 않고 경고한다.
-- Rationale: 현재 기본 킷 네이밍 구조에서 공유 소유 가능성이 낮아 MVP 복잡도를 줄인다.
+- Decision: 네트워크/파일 레이어만이 아니라 command handler까지 async 경로로 전환한다.
+- Rationale: 호출 경계에서 sync↔async 브리징 비용/복잡도를 줄이고 에러 처리/취소 제어를 단순화한다.
 - Alternatives considered:
-  - ownership 역인덱스 도입: 안전성은 높지만 데이터 모델/마이그레이션 복잡도 증가.
+  - 내부 레이어만 async + `asyncio.run`: 점진 전환은 쉬우나 경계 복잡도와 중복 코드 증가.
 
-## Decision 7: 버전 정책은 최신 우선 설치
+## Decision 7: atomic 설치 보장은 async 전환 후에도 유지
 
-- Decision: `multikit install <kit>`은 항상 원격 최신 버전을 기준으로 비교/설치한다.
-- Rationale: 사용자 경험 단순화, 별도 업그레이드 명령 없이 일관된 동작.
+- Decision: 모든 파일 다운로드 성공 후 반영하는 atomic staging 규칙을 유지한다.
+- Rationale: 비동기 최적화와 무관하게 clean operation 핵심 불변조건이다.
 - Alternatives considered:
-  - 버전 pinning 기본: 운영 안정성은 높지만 UX와 옵션 복잡도 증가.
-  - 별도 upgrade 명령 도입: MVP 범위 초과.
+  - 스트리밍 반영: 중간 실패 시 롤백 복잡도 증가.
 
-## Decision 8: 테스트 전략은 명령 중심 회귀 검증
+## Decision 8: 프로그램 자체 업데이트는 패키지 매니저 경로 유지
 
-- Decision: 명령별 테스트(`test_init/install/list/uninstall/diff`)와 파일시스템 side effect 검증을 우선한다.
-- Rationale: 헌법의 idempotent/clean operation 검증 요구 충족.
+- Decision: `multikit update`는 kit 업데이트 전용으로 유지하고, CLI 패키지 업그레이드는 `pip/uv/rye`로 처리한다.
+- Rationale: 기능 경계가 명확해지고 배포/환경 정책 충돌을 피할 수 있다.
 - Alternatives considered:
-  - 통합 E2E만 수행: 실패 원인 지역화가 어려움.
-  - 단위 테스트만 수행: 명령 조합 시나리오 누락 가능.
+  - CLI self-update 명령 도입: MVP 범위 확장 및 배포 전략 복잡화.

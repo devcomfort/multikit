@@ -16,7 +16,7 @@ app = App(name="list", help="List available and installed kits.")
 
 
 @app.default
-def handler() -> None:
+async def handler() -> None:
     """List available and installed kits."""
     project_dir = Path(".").resolve()
 
@@ -30,7 +30,7 @@ def handler() -> None:
     # Step 2: Fetch registry (graceful on failure)
     remote_registry: Registry | None = None
     try:
-        remote_registry = fetch_registry(config.registry_url)
+        remote_registry = await fetch_registry(config.registry_url)
     except Exception:
         print(
             "⚠ Could not fetch remote registry. Showing local kits only.",
@@ -109,3 +109,10 @@ def handler() -> None:
         for row in kits_table
     ]
     print(tabulate(rows, headers=headers, tablefmt="simple"))
+
+
+def list_handler() -> None:
+    """Sync wrapper for list handler."""
+    import asyncio
+
+    asyncio.run(handler())

@@ -27,7 +27,7 @@ TODOs:
 
 ### I. Intuitive CLI Experience
 
-The tool must be easy to use, leveraging `cyclopts` for type-hint based command definition. Commands (`init`, `install`, `list`) must be discoverable, and behavior must be predictable and consistent with standard CLI patterns.
+The tool must be easy to use, leveraging `cyclopts` for type-hint based command definition. Commands (`init`, `install`, `list`, `uninstall`, `diff`, `update`) must be discoverable, and behavior must be predictable and consistent with standard CLI patterns.
 
 ### II. Standardized Configuration
 

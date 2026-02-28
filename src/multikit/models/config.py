@@ -19,6 +19,35 @@ class InstalledKit(BaseModel):
     )
 
 
+class NetworkConfig(BaseModel):
+    """Network configuration for remote operations."""
+
+    max_concurrency: int = Field(
+        default=8,
+        ge=1,
+        le=32,
+        description="Maximum concurrent HTTP requests",
+    )
+    max_retries: int = Field(
+        default=3,
+        ge=0,
+        le=10,
+        description="Maximum retry attempts for failed requests",
+    )
+    retry_base_delay: float = Field(
+        default=0.5,
+        ge=0.1,
+        le=5.0,
+        description="Base delay (seconds) for exponential backoff",
+    )
+    retry_max_delay: float = Field(
+        default=2.0,
+        ge=0.5,
+        le=30.0,
+        description="Maximum delay (seconds) between retries",
+    )
+
+
 class MultikitConfig(BaseModel):
     """Root config model for multikit.toml."""
 
@@ -26,6 +55,9 @@ class MultikitConfig(BaseModel):
     registry_url: str = Field(
         default=DEFAULT_REGISTRY_URL,
         description="Base URL for the remote kit registry",
+    )
+    network: NetworkConfig = Field(
+        default_factory=NetworkConfig, description="Network configuration"
     )
     kits: dict[str, InstalledKit] = Field(
         default_factory=dict, description="Installed kits"

@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Generator
 from contextlib import contextmanager
+import aiofiles
 
 
 @contextmanager
@@ -75,3 +76,37 @@ def delete_kit_files(github_dir: Path, file_paths: list[str]) -> int:
             target.unlink()
             deleted += 1
     return deleted
+
+
+# Async file I/O helpers
+async def async_write_file(path: Path, content: str) -> None:
+    """Write content to file asynchronously."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    async with aiofiles.open(path, "w", encoding="utf-8") as f:
+        await f.write(content)
+
+
+async def async_read_file(path: Path) -> str:
+    """Read file content asynchronously."""
+    async with aiofiles.open(path, "r", encoding="utf-8") as f:
+        return await f.read()
+
+
+async def async_move_file(src: Path, dst: Path) -> None:
+    """Move file asynchronously (copy + delete)."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    # Copy content
+    async with aiofiles.open(src, "r", encoding="utf-8") as sf:
+        content = await sf.read()
+    async with aiofiles.open(dst, "w", encoding="utf-8") as df:
+        await df.write(content)
+    # Remove source
+    src.unlink()
+
+
+async def async_delete_file(path: Path) -> bool:
+    """Delete file asynchronously. Returns True if deleted."""
+    if path.exists():
+        path.unlink()
+        return True
+    return False

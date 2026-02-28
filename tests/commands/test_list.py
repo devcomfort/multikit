@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import aiohttp
 from pathlib import Path
+from unittest import mock
 
-import httpx
 import pytest
-import respx
+from aioresponses import aioresponses
 
 from multikit.commands.list_cmd import handler as list_handler
 from multikit.models.config import InstalledKit, MultikitConfig
@@ -25,8 +26,8 @@ SAMPLE_REGISTRY = {
 class TestListCommand:
     """Tests for the list command handler."""
 
-    @respx.mock
-    def test_list_with_installed_kit(
+    @pytest.mark.asyncio
+    async def test_list_with_installed_kit(
         self, initialized_project: Path, monkeypatch, capsys
     ) -> None:
         """List shows installed kit status."""
@@ -43,11 +44,11 @@ class TestListCommand:
         )
         save_config(initialized_project, config)
 
-        respx.get(f"{BASE_URL}/registry.json").mock(
-            return_value=httpx.Response(200, json=SAMPLE_REGISTRY)
-        )
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/registry.json", payload=SAMPLE_REGISTRY)
 
-        list_handler()
+            await list_handler()
 
         captured = capsys.readouterr()
         assert "testkit" in captured.out
@@ -55,22 +56,24 @@ class TestListCommand:
         assert "gitkit" in captured.out
         assert "Available" in captured.out
 
-    @respx.mock
-    def test_list_empty(self, initialized_project: Path, monkeypatch, capsys) -> None:
+    @pytest.mark.asyncio
+    async def test_list_empty(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
         """List with no kits installed and empty registry."""
         monkeypatch.chdir(initialized_project)
 
-        respx.get(f"{BASE_URL}/registry.json").mock(
-            return_value=httpx.Response(200, json={"kits": []})
-        )
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/registry.json", payload={"kits": []})
 
-        list_handler()
+            await list_handler()
 
         captured = capsys.readouterr()
         assert "No kits found" in captured.out
 
-    @respx.mock
-    def test_list_network_error_fallback(
+    @pytest.mark.asyncio
+    async def test_list_network_error_fallback(
         self, initialized_project: Path, monkeypatch, capsys
     ) -> None:
         """List gracefully degrades on network error."""
@@ -86,26 +89,43 @@ class TestListCommand:
         )
         save_config(initialized_project, config)
 
-        respx.get(f"{BASE_URL}/registry.json").mock(
-            side_effect=httpx.ConnectError("Connection refused")
-        )
+        m = aioresponses()
+        with m:
+            m.get(
+                f"{BASE_URL}/registry.json",
+                exception=aiohttp.ClientConnectorError(
+                    mock.Mock(), OSError("Connection refused")
+                ),
+            )
 
-        list_handler()
+            await list_handler()
 
         captured = capsys.readouterr()
         assert "testkit" in captured.out
         assert "Installed" in captured.out
         assert "Could not fetch remote registry" in captured.err
 
-    def test_list_config_corrupted(
-        self, initialized_project: Path, monkeypatch
+    @pytest.mark.asyncio
+    async def test_list_config_corrupted(
+        self, initialized_project: Path, monkeypatch, capsys
     ) -> None:
-        """List fails on corrupted config."""
+        """List handles corrupted config gracefully by backing up and using defaults."""
         monkeypatch.chdir(initialized_project)
         (initialized_project / "multikit.toml").write_text(
             "invalid [[[", encoding="utf-8"
         )
 
-        with pytest.raises(SystemExit) as exc_info:
-            list_handler()
-        assert exc_info.value.code == 1
+        # Should not raise, but backup and use defaults
+        await list_handler()
+
+        # Check backup was created
+        backup_file = initialized_project / "multikit.toml.corrupted.*"
+        import glob
+
+        backups = glob.glob(str(backup_file))
+        assert len(backups) > 0, "Corrupted config should be backed up"
+
+        # Check warning message
+        captured = capsys.readouterr()
+        assert "Corrupted multikit.toml detected" in captured.err
+        assert "backed up" in captured.err

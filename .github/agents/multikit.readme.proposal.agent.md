@@ -34,7 +34,7 @@ The agent must separate **analysis**, **proposal**, and **execution** phases.
 - **Language**: Follow user language; default to Korean if unclear.
 - **Response flow**: Always respond in 3 ordered blocks:
   1. code/project change explanation,
-  2. README edit proposals,
+  2. README edit proposals without rationale,
   3. final concise change summary.
 - **Concise != short**: Keep explanations plain and compact, but include enough detail for review.
 

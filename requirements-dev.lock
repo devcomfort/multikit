@@ -10,12 +10,27 @@
 #   universal: false
 
 -e file:.
+aiofiles==25.1.0
+    # via multikit
+aiohappyeyeballs==2.6.1
+    # via aiohttp
+aiohttp==3.13.3
+    # via aioresponses
+    # via multikit
+aioresponses==0.7.8
+aiosignal==1.4.0
+    # via aiohttp
 annotated-types==0.7.0
     # via pydantic
 anyio==4.12.1
     # via httpx
+async-timeout==5.0.1
+    # via aiohttp
 attrs==25.4.0
+    # via aiohttp
     # via cyclopts
+backports-asyncio-runner==1.2.0
+    # via pytest-asyncio
 cachetools==7.0.1
     # via tox
 certifi==2026.1.4
@@ -41,16 +56,19 @@ exceptiongroup==1.3.1
 filelock==3.24.2
     # via tox
     # via virtualenv
+frozenlist==1.8.0
+    # via aiohttp
+    # via aiosignal
 h11==0.16.0
     # via httpcore
 httpcore==1.0.9
     # via httpx
 httpx==0.28.1
     # via multikit
-    # via respx
 idna==3.11
     # via anyio
     # via httpx
+    # via yarl
 iniconfig==2.3.0
     # via pytest
 librt==0.8.0
@@ -59,10 +77,14 @@ markdown-it-py==4.0.0
     # via rich
 mdurl==0.1.2
     # via markdown-it-py
+multidict==6.7.1
+    # via aiohttp
+    # via yarl
 mypy==1.19.1
 mypy-extensions==1.1.0
     # via mypy
 packaging==26.0
+    # via aioresponses
     # via pyproject-api
     # via pytest
     # via tox
@@ -77,6 +99,9 @@ pluggy==1.6.0
     # via tox
 prompt-toolkit==3.0.52
     # via questionary
+propcache==0.4.1
+    # via aiohttp
+    # via yarl
 pydantic==2.12.5
     # via multikit
 pydantic-core==2.41.5
@@ -87,17 +112,18 @@ pygments==2.19.2
 pyproject-api==1.10.0
     # via tox
 pytest==9.0.2
+    # via pytest-asyncio
     # via pytest-cov
+pytest-asyncio==1.3.0
 pytest-cov==7.0.0
 questionary==2.1.1
     # via multikit
-respx==0.22.0
 rich==14.3.2
     # via cyclopts
     # via rich-rst
 rich-rst==1.3.2
     # via cyclopts
-ruff==0.15.1
+ruff==0.15.4
 tabulate==0.9.0
     # via multikit
 tomli==2.4.0
@@ -113,14 +139,19 @@ tomli-w==1.2.0
 tox==4.36.0
     # via tox-gh-actions
 tox-gh-actions==3.5.0
+types-aiofiles==25.1.0.20251011
 types-tabulate==0.9.0.20241207
+    # via multikit
 typing-extensions==4.15.0
+    # via aiosignal
     # via anyio
     # via cyclopts
     # via exceptiongroup
+    # via multidict
     # via mypy
     # via pydantic
     # via pydantic-core
+    # via pytest-asyncio
     # via tox
     # via typing-inspection
     # via virtualenv
@@ -130,3 +161,5 @@ virtualenv==20.38.0
     # via tox
 wcwidth==0.6.0
     # via prompt-toolkit
+yarl==1.22.0
+    # via aiohttp

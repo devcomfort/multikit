@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import shutil
 import sys
+from datetime import datetime
 from pathlib import Path
 
 # Python 3.11+ has tomllib in stdlib
@@ -36,13 +38,24 @@ def write_toml(path: Path, data: dict) -> None:
 def load_config(project_dir: Path) -> MultikitConfig:
     """Load multikit.toml from project directory.
 
-    Returns a default config if file doesn't exist.
+    Returns a default config if file doesn't exist or is corrupted.
+    If corrupted, backs up the file and prints a warning.
     """
     config_path = project_dir / "multikit.toml"
     if not config_path.exists():
         return MultikitConfig()
 
-    data = read_toml(config_path)
+    try:
+        data = read_toml(config_path)
+    except Exception as e:
+        # TOML parsing failed - backup corrupted file and return default config
+        _backup_corrupted_config(config_path)
+        print(
+            f"multikit: Warning: Corrupted multikit.toml detected, backed up and using defaults. Error: {e}",
+            file=sys.stderr,
+        )
+        return MultikitConfig()
+
     multikit_data = data.get("multikit", {})
 
     # Parse installed kits
@@ -54,8 +67,30 @@ def load_config(project_dir: Path) -> MultikitConfig:
     return MultikitConfig(
         version=multikit_data.get("version", "0.1.0"),
         registry_url=multikit_data.get("registry_url", DEFAULT_REGISTRY_URL),
+        network=multikit_data.get("network", {}),
         kits=kits,
     )
+
+
+def _backup_corrupted_config(config_path: Path) -> None:
+    """Backup corrupted config file with timestamp."""
+    if not config_path.exists():
+        return
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = config_path.parent / f"multikit.toml.corrupted.{timestamp}"
+
+    try:
+        shutil.copy2(config_path, backup_path)
+        print(
+            f"multikit: Backed up corrupted config to {backup_path}",
+            file=sys.stderr,
+        )
+    except Exception as e:
+        print(
+            f"multikit: Warning: Failed to backup corrupted config: {e}",
+            file=sys.stderr,
+        )
 
 
 def save_config(project_dir: Path, config: MultikitConfig) -> None:
@@ -66,6 +101,7 @@ def save_config(project_dir: Path, config: MultikitConfig) -> None:
         "multikit": {
             "version": config.version,
             "registry_url": config.registry_url,
+            "network": config.network.model_dump() if config.network else {},
         }
     }
 
