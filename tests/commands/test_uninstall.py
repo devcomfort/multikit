@@ -141,3 +141,76 @@ class TestUninstallInteractive:
         with pytest.raises(SystemExit) as exc_info:
             uninstall_handler()
         assert exc_info.value.code == 1
+
+
+class TestUninstallWrapperFunction:
+    """Tests for the sync wrapper function uninstall_handler."""
+
+    def test_uninstall_handler_wrapper_no_args(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Test the sync wrapper with no kit name (interactive)."""
+        monkeypatch.chdir(initialized_project)
+        monkeypatch.setattr(
+            "multikit.commands.uninstall.select_installed_kits",
+            lambda _config, action="uninstall": [],
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            uninstall_handler()
+        assert exc_info.value.code == 0
+
+    def test_uninstall_handler_wrapper_with_kit_name(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """Test the sync wrapper with explicit kit name."""
+        monkeypatch.chdir(initialized_project)
+
+        # Create installed files and config
+        agents_dir = initialized_project / ".github" / "agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        agent_file = agents_dir / "testkit.testdesign.agent.md"
+        agent_file.write_text("agent content", encoding="utf-8")
+
+        config = MultikitConfig(
+            kits={
+                "testkit": InstalledKit(
+                    version="1.0.0",
+                    files=["agents/testkit.testdesign.agent.md"],
+                )
+            }
+        )
+        save_config(initialized_project, config)
+
+        uninstall_handler("testkit")
+
+        captured = capsys.readouterr()
+        assert "Uninstalled testkit" in captured.out
+        assert not agent_file.exists()
+
+
+class TestUninstallConfigCorruption:
+    """Tests for config corruption handling in uninstall command."""
+
+    def test_uninstall_corrupted_config_exits_one(
+        self, tmp_path: Path, monkeypatch, capsys
+    ) -> None:
+        """Test uninstall handles corrupted config."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create corrupted config
+        config_path = tmp_path / "multikit.toml"
+        config_path.write_text(
+            "[multikit\n"  # Invalid TOML
+            'version = "0.1.0"\n',
+            encoding="utf-8",
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            from multikit.commands.uninstall import handler as uninstall_handler
+
+            uninstall_handler("testkit")
+        assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        assert "Corrupted multikit.toml" in captured.err

@@ -235,3 +235,110 @@ class TestUpdateInteractive:
         with pytest.raises(SystemExit) as exc_info:
             await update_handler()
         assert exc_info.value.code == 1
+
+
+class TestUpdateWrapperFunction:
+    """Tests for the sync wrapper function update_handler."""
+
+    def test_update_handler_wrapper_no_args(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Test the sync wrapper with no kit name (interactive)."""
+        from multikit.commands.update import update_handler
+
+        monkeypatch.chdir(initialized_project)
+        monkeypatch.setattr(
+            "multikit.commands.update.select_installed_kits",
+            lambda _config, action="update": [],
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            update_handler()
+        assert exc_info.value.code == 0
+
+    def test_update_handler_wrapper_with_kit_name(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Test the sync wrapper with explicit kit name."""
+        from multikit.commands.update import update_handler
+
+        monkeypatch.chdir(initialized_project)
+
+        # Setup installed kit
+        config = MultikitConfig(
+            kits={
+                "testkit": InstalledKit(
+                    version="1.0.0",
+                    files=[
+                        "agents/testkit.testdesign.agent.md",
+                        "prompts/testkit.testdesign.prompt.md",
+                    ],
+                )
+            }
+        )
+        save_config(initialized_project, config)
+
+        async def mock_update(*args, **kwargs):
+            return True
+
+        monkeypatch.setattr("multikit.commands.update._update_single_kit", mock_update)
+
+        update_handler("testkit", force=False)
+
+    def test_update_handler_wrapper_with_force_flag(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Test the sync wrapper passes force flag correctly."""
+        from multikit.commands.update import update_handler
+
+        monkeypatch.chdir(initialized_project)
+
+        # Setup installed kit
+        config = MultikitConfig(
+            kits={
+                "testkit": InstalledKit(
+                    version="1.0.0",
+                    files=["agents/test.agent.md"],
+                )
+            }
+        )
+        save_config(initialized_project, config)
+
+        call_args = {}
+
+        async def mock_update(kit_name, project_dir, github_dir, registry_url, force):
+            call_args["force"] = force
+            return True
+
+        monkeypatch.setattr("multikit.commands.update._update_single_kit", mock_update)
+
+        update_handler("testkit", force=True)
+        assert call_args.get("force") is True
+
+
+class TestUpdateConfigCorruption:
+    """Tests for config corruption handling in update command."""
+
+    @pytest.mark.asyncio
+    async def test_update_corrupted_config_exits_one(
+        self, tmp_path: Path, monkeypatch, capsys
+    ) -> None:
+        """Test update handles corrupted config."""
+        monkeypatch.chdir(tmp_path)
+
+        # Create corrupted config
+        config_path = tmp_path / "multikit.toml"
+        config_path.write_text(
+            "[multikit\n"  # Invalid TOML
+            'version = "0.1.0"\n',
+            encoding="utf-8",
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            from multikit.commands.update import handler as update_handler
+
+            await update_handler("testkit")
+        assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        assert "Corrupted multikit.toml" in captured.err

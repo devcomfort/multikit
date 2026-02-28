@@ -571,3 +571,199 @@ class TestInstallCommandInteractive:
         with pytest.raises(SystemExit) as exc_info:
             await install_handler()
         assert exc_info.value.code == 1
+
+
+class TestInstallWrapperFunction:
+    """Tests for the sync wrapper function install_handler."""
+
+    def test_install_handler_wrapper_no_args(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Test the sync wrapper with no kit name (interactive)."""
+        from multikit.commands.install import install_handler
+        from aioresponses import aioresponses
+
+        monkeypatch.chdir(initialized_project)
+        monkeypatch.setattr(
+            "multikit.commands.install.select_installable_kits",
+            lambda _config, _registry: [],
+        )
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/registry.json", payload={"kits": []})
+
+            with pytest.raises(SystemExit) as exc_info:
+                install_handler()
+            assert exc_info.value.code == 0
+
+    def test_install_handler_wrapper_with_kit_name(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Test the sync wrapper with explicit kit name."""
+        from multikit.commands.install import install_handler
+
+        monkeypatch.chdir(initialized_project)
+
+        async def mock_install(*args, **kwargs):
+            return True
+
+        monkeypatch.setattr(
+            "multikit.commands.install._install_single_kit", mock_install
+        )
+
+        install_handler("testkit", force=False)
+
+    def test_install_handler_wrapper_with_force_flag(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Test the sync wrapper passes force flag correctly."""
+        from multikit.commands.install import install_handler
+
+        monkeypatch.chdir(initialized_project)
+
+        call_args = {}
+
+        async def mock_install(kit_name, project_dir, github_dir, registry_url, force):
+            call_args["force"] = force
+            return True
+
+        monkeypatch.setattr(
+            "multikit.commands.install._install_single_kit", mock_install
+        )
+
+        install_handler("testkit", force=True)
+        assert call_args.get("force") is True
+
+    def test_install_handler_wrapper_with_custom_registry(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Test the sync wrapper passes custom registry correctly."""
+        from multikit.commands.install import install_handler
+
+        monkeypatch.chdir(initialized_project)
+
+        call_args = {}
+
+        async def mock_install(kit_name, project_dir, github_dir, registry_url, force):
+            call_args["registry_url"] = registry_url
+            return True
+
+        monkeypatch.setattr(
+            "multikit.commands.install._install_single_kit", mock_install
+        )
+
+        install_handler("testkit", registry="https://custom.com/registry")
+        assert "custom.com" in call_args.get("registry_url", "")
+
+
+class TestInstallExceptionPaths:
+    """Tests for specific exception paths in install command."""
+
+    @pytest.mark.asyncio
+    async def test_install_with_empty_kit(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """Install handles kits with no files gracefully."""
+        monkeypatch.chdir(initialized_project)
+
+        empty_manifest = {
+            "name": "empty-kit",
+            "version": "1.0.0",
+            "description": "Empty kit",
+            "agents": [],
+            "prompts": [],
+        }
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/empty-kit/manifest.json", payload=empty_manifest)
+
+            await install_handler("empty-kit")
+
+        captured = capsys.readouterr()
+        assert "declares no files" in captured.err
+
+
+class TestInstallHTTPErrors:
+    """Tests for HTTP error handling in install command."""
+
+    @pytest.mark.asyncio
+    async def test_install_manifest_404(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """Test install handles 404 for manifest."""
+        monkeypatch.chdir(initialized_project)
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/testkit/manifest.json", status=404)
+            with pytest.raises(SystemExit) as exc_info:
+                await install_handler("testkit")
+            assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        assert "not found" in captured.err
+
+    @pytest.mark.asyncio
+    async def test_install_manifest_500(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """Test install handles 500 for manifest."""
+        monkeypatch.chdir(initialized_project)
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/testkit/manifest.json", status=500)
+            with pytest.raises(SystemExit) as exc_info:
+                await install_handler("testkit")
+            assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        # 500 errors trigger retry logic, so we expect retry exhaustion message
+        assert "Failed to fetch manifest" in captured.err
+
+    @pytest.mark.asyncio
+    async def test_install_file_404(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """Test install handles 404 for file download."""
+        monkeypatch.chdir(initialized_project)
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
+            m.get(
+                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                status=404,
+            )
+            with pytest.raises(SystemExit) as exc_info:
+                await install_handler("testkit")
+            assert exc_info.value.code == 1
+
+        captured = capsys.readouterr()
+        assert "File not found" in captured.err
+
+
+class TestInstallNetworkErrors:
+    """Tests for network error handling in install command."""
+
+    @pytest.mark.asyncio
+    async def test_install_file_network_error(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """Test install handles network error when downloading file."""
+        monkeypatch.chdir(initialized_project)
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
+            m.get(
+                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                exception=aiohttp.ClientError("Network error"),
+            )
+            with pytest.raises(SystemExit):
+                await install_handler("testkit")
+
+        captured = capsys.readouterr()
+        assert "Failed to download" in captured.err

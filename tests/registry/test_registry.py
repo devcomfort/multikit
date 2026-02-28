@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import aiohttp
 import pytest
+import socket
+import ssl
+from unittest import mock
 from aioresponses import aioresponses
 
 from multikit.models.config import NetworkConfig
@@ -105,6 +108,96 @@ class TestRemoteClient:
                 await client.close()
         finally:
             m.stop()
+
+
+class TestHostUnreachable:
+    """Tests for HostUnreachableError logic in RemoteClient."""
+
+    def test_is_dns_tls_error_types(self):
+        client = RemoteClient()
+        # DNS error
+        assert client._is_dns_tls_error(socket.gaierror())
+        # TLS error
+        assert client._is_dns_tls_error(ssl.SSLError())
+        # Connection errors
+        assert client._is_dns_tls_error(
+            aiohttp.ClientConnectorError(mock.Mock(), OSError())
+        )
+        assert client._is_dns_tls_error(aiohttp.ClientConnectionError())
+        # Timeout error
+        assert client._is_dns_tls_error(aiohttp.ServerTimeoutError())
+        # Non-DNS/TLS error
+        assert not client._is_dns_tls_error(ValueError())
+
+    def test_host_unreachable_triggers(self):
+        client = RemoteClient()
+        url = "https://example.com/foo"
+        err = socket.gaierror()
+        # first two calls should not raise
+        client._check_host_unreachable(url, err)
+        client._check_host_unreachable(url, err)
+        # third consecutive same-type error triggers HostUnreachableError
+        with pytest.raises(Exception) as exc_info:
+            client._check_host_unreachable(url, err)
+        assert hasattr(exc_info.value, "host")
+        assert isinstance(exc_info.value, Exception)
+
+    def test_host_unreachable_clears_on_non_dns_error(self):
+        client = RemoteClient()
+        url = "https://example.com/foo"
+        err = socket.gaierror()
+        client._check_host_unreachable(url, err)
+        client._check_host_unreachable(url, err)
+        # non-DNS/TLS error resets history
+        client._check_host_unreachable(url, ValueError())
+        # now two new DNS errors should not raise
+
+    def test_retry_after_delay_parsing(self):
+        client = RemoteClient()
+        # valid integer string
+        assert client._get_retry_after_delay({"Retry-After": "5"}) == 5.0
+        # zero or negative values treated as invalid
+        assert client._get_retry_after_delay({"Retry-After": "-1"}) is None
+        # non-numeric should return None
+        assert client._get_retry_after_delay({"Retry-After": "invalid"}) is None
+        # missing header
+        assert client._get_retry_after_delay({}) is None
+
+    @pytest.mark.asyncio
+    async def test_fetch_with_retry_rate_limit_too_long(self):
+        """If Retry-After exceeds threshold the call fails immediately on first attempt."""
+        url = "https://example.com/test"
+        m = aioresponses()
+        with m:
+            # respond with 429 and large Retry-After header
+            m.get(url, status=429, headers={"Retry-After": "61"})
+            client = RemoteClient()
+            with pytest.raises(RemoteFetchError) as exc:
+                await client._fetch_with_retry(url)
+            err = exc.value
+            assert ">60s threshold" in str(err)
+            # attempts should be 1 because it failed on the first try
+            assert err.attempts == 1
+            await client.close()
+
+    @pytest.mark.asyncio
+    async def test_fetch_with_retry_exhaustion(self):
+        """Exhausting all retries should raise RemoteFetchError with proper attempt count."""
+        url = "https://example.com/alwaysfail"
+        m = aioresponses()
+        with m:
+            # make every request return 500
+            for _ in range(RemoteClient().network.max_retries):
+                m.get(url, status=500)
+            client = RemoteClient()
+            with pytest.raises(RemoteFetchError) as exc:
+                await client._fetch_with_retry(url)
+            err = exc.value
+            assert err.attempts == client.network.max_retries
+            assert "Failed after" in str(err)
+            await client.close()
+        client._check_host_unreachable(url, err)
+        client._check_host_unreachable(url, err)
 
 
 class TestRetryBehavior:

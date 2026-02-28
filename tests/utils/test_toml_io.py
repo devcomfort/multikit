@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import pytest
 
 from multikit.models.config import InstalledKit, MultikitConfig, NetworkConfig
 from multikit.utils.toml_io import (
@@ -69,6 +70,17 @@ class TestLoadConfig:
         config_path.write_text("[multikit]\n", encoding="utf-8")
         config = load_config(tmp_path)
         assert config.kits == {}
+
+    def test_load_invalid_kit_name_preserved(self, tmp_path: Path) -> None:
+        """Loader does not validate kit name keys; incorrect names are retained."""
+        config_path = tmp_path / "multikit.toml"
+        # name contains uppercase and space, which would be invalid for manifests
+        config_path.write_text(
+            '[multikit]\n[multikit.kits."Invalid Name"]\nversion = "1.0.0"\n',
+            encoding="utf-8",
+        )
+        config = load_config(tmp_path)
+        assert "Invalid Name" in config.kits
 
 
 class TestSaveConfig:
@@ -201,8 +213,64 @@ class TestTomlCorruptionRecovery:
             '[multikit]\nversion = "0.1.0"\n',
             encoding="utf-8",
         )
-        load_config(tmp_path)
+        config = load_config(tmp_path)
+        # should have default values and no backups created
+        assert config.kits == {}
+        backups = list(tmp_path.glob("multikit.toml.corrupted.*"))
+        assert backups == []
 
-        # Check no backup file created
-        backup_files = list(tmp_path.glob("multikit.toml.corrupted.*"))
-        assert len(backup_files) == 0
+    def test_backup_failure_prints_warning(
+        self, tmp_path: Path, monkeypatch, capsys
+    ) -> None:
+        """If copying backup fails, warning should be printed but no exception raised."""
+        config_path = tmp_path / "multikit.toml"
+        config_path.write_text(
+            "[multikit\n"  # invalid
+            'version = "0.1.0"\n',
+            encoding="utf-8",
+        )
+
+        # simulate shutil.copy2 failure
+        import shutil
+
+        def fake_copy(src, dst, *args, **kwargs):
+            raise PermissionError("no access")
+
+        monkeypatch.setattr(shutil, "copy2", fake_copy)
+
+        config = load_config(tmp_path)
+        # should have returned default config
+        assert config.kits == {}
+        captured = capsys.readouterr()
+        assert "Failed to backup corrupted config" in captured.err
+
+
+class TestBackupFailure:
+    """Tests for backup failure handling in toml_io."""
+
+    def test_backup_failure_prints_warning(
+        self, tmp_path: Path, monkeypatch, capsys
+    ) -> None:
+        """If copying backup fails, warning should be printed but no exception raised."""
+        config_path = tmp_path / "multikit.toml"
+        config_path.write_text(
+            "[multikit\n"  # invalid
+            'version = "0.1.0"\n',
+            encoding="utf-8",
+        )
+
+        # simulate shutil.copy2 failure
+        import shutil
+
+        def fake_copy(src, dst, *args, **kwargs):
+            raise PermissionError("no access")
+
+        monkeypatch.setattr(shutil, "copy2", fake_copy)
+
+        from multikit.utils.toml_io import load_config
+
+        config = load_config(tmp_path)
+        # should have returned default config
+        assert config.kits == {}
+        captured = capsys.readouterr()
+        assert "Failed to backup corrupted config" in captured.err

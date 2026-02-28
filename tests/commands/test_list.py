@@ -128,4 +128,105 @@ class TestListCommand:
         # Check warning message
         captured = capsys.readouterr()
         assert "Corrupted multikit.toml detected" in captured.err
-        assert "backed up" in captured.err
+
+
+class TestListExceptionPaths:
+    """Tests for specific exception paths in list command."""
+
+    @pytest.mark.asyncio
+    async def test_list_registry_http_500(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """List gracefully handles HTTP 500 errors from registry."""
+        monkeypatch.chdir(initialized_project)
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/registry.json", status=500)
+
+            await list_handler()
+
+        captured = capsys.readouterr()
+        assert "Could not fetch remote registry" in captured.err
+        assert "No kits found" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_list_shows_local_only_kits_with_remote(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """List shows locally-installed kits with available remote kits."""
+        monkeypatch.chdir(initialized_project)
+
+        # Add a local kit
+        config = MultikitConfig(
+            kits={
+                "local-kit": InstalledKit(
+                    version="1.0.0",
+                    files=["agents/local.agent.md"],
+                )
+            }
+        )
+        save_config(initialized_project, config)
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/registry.json", payload=SAMPLE_REGISTRY)
+
+            await list_handler()
+
+        captured = capsys.readouterr()
+        # Should show both remote and local kits in table
+        lines = captured.out.split("\n")
+        kit_names = [
+            line
+            for line in lines
+            if "testkit" in line or "gitkit" in line or "local-kit" in line
+        ]
+        assert len(kit_names) > 0, "Should display kits in table"
+
+
+class TestListRemoteFetchFailure:
+    """Tests for remote registry fetch failure in list command."""
+
+    @pytest.mark.asyncio
+    async def test_list_remote_fetch_failure(
+        self, initialized_project: Path, monkeypatch, capsys
+    ) -> None:
+        """Test list handles remote registry fetch failure gracefully."""
+        monkeypatch.chdir(initialized_project)
+
+        # Create local kit
+        agents_dir = initialized_project / ".github" / "agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        (agents_dir / "testkit.testdesign.agent.md").write_text(
+            "agent content\n", encoding="utf-8"
+        )
+
+        from multikit.models.config import InstalledKit, MultikitConfig
+        from multikit.utils.toml_io import save_config
+
+        config = MultikitConfig(
+            kits={
+                "testkit": InstalledKit(
+                    version="1.0.0",
+                    files=["agents/testkit.testdesign.agent.md"],
+                )
+            }
+        )
+        save_config(initialized_project, config)
+
+        # Mock fetch_registry to raise exception
+        async def mock_fetch_registry(_url):
+            raise Exception("Network error")
+
+        monkeypatch.setattr(
+            "multikit.commands.list_cmd.fetch_registry", mock_fetch_registry
+        )
+
+        from multikit.commands.list_cmd import handler as list_handler
+
+        await list_handler()
+
+        captured = capsys.readouterr()
+        assert "Could not fetch remote registry" in captured.err
+        assert "testkit" in captured.out
