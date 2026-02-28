@@ -78,7 +78,6 @@ async def handler(
                 project_dir=project_dir,
                 github_dir=github_dir,
                 registry_url=registry_url,
-                force=force,
             ):
                 failed.append(name)
 
@@ -94,23 +93,3 @@ async def handler(
             force=force,
         ):
             sys.exit(1)
-
-
-def update_handler(
-    kit_name: Annotated[
-        str | None,
-        Parameter(help="Name of the kit to update (interactive if omitted)"),
-    ] = None,
-    *,
-    force: Annotated[
-        bool, Parameter(help="Overwrite all without confirmation")
-    ] = False,
-    registry: Annotated[
-        str | None,
-        Parameter(name="--registry", help="Custom registry base URL"),
-    ] = None,
-) -> None:
-    """Sync wrapper for update handler."""
-    import asyncio
-
-    asyncio.run(handler(kit_name, force=force, registry=registry))
