@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import sys
+from threading import Thread
+from typing import TYPE_CHECKING
 
 import questionary
 
 from multikit.models.config import MultikitConfig
 from multikit.models.kit import Registry
+
+if TYPE_CHECKING:
+    import asyncio
 
 
 def select_installable_kits(
@@ -39,12 +44,24 @@ def select_installable_kits(
         print("No kits available to install.")
         return []
 
-    result = questionary.checkbox(
-        "Select kits to install (space to toggle, enter to confirm):",
-        choices=choices,
-    ).ask()
+    # Run in a separate thread to avoid event loop conflicts
+    result_holder = {"result": None}
 
-    return result if result else []
+    def _run_in_thread() -> None:
+        result_holder["result"] = questionary.checkbox(
+            "Select kits to install (space to toggle, enter to confirm):",
+            choices=choices,
+        ).ask()
+
+    thread = Thread(target=_run_in_thread)
+    thread.start()
+    thread.join(timeout=30)
+
+    if thread.is_alive():
+        print("✗ Prompt timed out", file=sys.stderr)
+        return []
+
+    return result_holder["result"] if result_holder["result"] else []
 
 
 def select_installed_kits(
@@ -73,9 +90,21 @@ def select_installed_kits(
             )
         )
 
-    result = questionary.checkbox(
-        f"Select kits to {action} (space to toggle, enter to confirm):",
-        choices=choices,
-    ).ask()
+    # Run in a separate thread to avoid event loop conflicts
+    result_holder = {"result": None}
 
-    return result if result else []
+    def _run_in_thread() -> None:
+        result_holder["result"] = questionary.checkbox(
+            f"Select kits to {action} (space to toggle, enter to confirm):",
+            choices=choices,
+        ).ask()
+
+    thread = Thread(target=_run_in_thread)
+    thread.start()
+    thread.join(timeout=30)
+
+    if thread.is_alive():
+        print("✗ Prompt timed out", file=sys.stderr)
+        return []
+
+    return result_holder["result"] if result_holder["result"] else []
