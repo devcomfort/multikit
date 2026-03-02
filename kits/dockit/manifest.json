@@ -1,0 +1,31 @@
+{
+  "name": "dockit",
+  "version": "2.0.0",
+  "description": "Documentation governance, generation, and analysis — README and project docs (guides, API reference, architecture docs)",
+  "agents": [
+    "dockit.governance.readme.agent.md",
+    "dockit.governance.project_docs.agent.md",
+    "dockit.generate.readme.agent.md",
+    "dockit.generate.project_docs.agent.md",
+    "dockit.analyze.readme.agent.md",
+    "dockit.analyze.project_docs.agent.md",
+    "dockit.help.agent.md"
+  ],
+  "prompts": [
+    "dockit.governance.readme.prompt.md",
+    "dockit.governance.project_docs.prompt.md",
+    "dockit.generate.readme.prompt.md",
+    "dockit.generate.project_docs.prompt.md",
+    "dockit.analyze.readme.prompt.md",
+    "dockit.analyze.project_docs.prompt.md",
+    "dockit.help.prompt.md"
+  ],
+  "templates": [
+    {
+      "agent": "dockit.governance.readme",
+      "src": "readme-governance.template.md",
+      "dest": ".github/readme-governance.md",
+      "overwrite": false
+    }
+  ]
+}

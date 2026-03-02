@@ -1,0 +1,68 @@
+# cikit: CI Check (Copilot Direct)
+#
+# Copilot CLI로 거버넌스 준수 여부를 1회 실행으로 검사합니다.
+# 검사 프롬프트: .github/ci/copilot-check-prompt.md
+#
+# Prerequisites:
+#   - GitHub Copilot CLI 설치
+#   - PERSONAL_ACCESS_TOKEN secret (Fine-grained PAT, Copilot Requests 권한)
+#   - COPILOT_MODEL variable (선택, 미설정 시 기본 모델)
+#
+# TODO: 프로젝트에 맞게 paths, branches를 커스터마이징하세요.
+
+name: "cikit: CI Check (Copilot)"
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "kits/**"
+      - "pyproject.toml"
+      - "README.md"
+      - ".github/*-governance.md"
+      # TODO: Add project-specific paths
+
+  push:
+    branches: [main]
+
+  workflow_dispatch:
+
+jobs:
+  governance-check:
+    # PR 머지로 인한 push는 스킵 (PR에서 이미 검증됨)
+    if: >
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       !startsWith(github.event.head_commit.message, 'Merge pull request'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Copilot CLI
+        run: npm install -g @github/copilot
+
+      - name: Run governance check
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          COPILOT_MODEL: ${{ vars.COPILOT_MODEL }}
+        run: |
+          echo "📋 Running governance compliance check..."
+          if [ -f ".github/ci/copilot-check-prompt.md" ]; then
+            copilot -p "$(cat .github/ci/copilot-check-prompt.md)"
+          else
+            echo "⚠️ Check prompt not found: .github/ci/copilot-check-prompt.md"
+            echo "Run cikit.ci.check to generate it."
+            exit 1
+          fi

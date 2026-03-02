@@ -1,0 +1,86 @@
+# cikit: CI Check (Ralph Loop)
+#
+# Ralph Wiggum + Copilot CLI로 반복 자가수정 거버넌스 검사를 수행합니다.
+# Ralph 태스크 파일: .github/ci/ralph-check-tasks.md
+#
+# Prerequisites:
+#   - GitHub Copilot CLI + Ralph Wiggum 설치
+#   - PERSONAL_ACCESS_TOKEN secret (Fine-grained PAT, Copilot Requests 권한)
+#   - COPILOT_MODEL variable (선택)
+#   - RALPH_MAX_ITERATIONS variable (선택, 기본 10)
+#
+# TODO: 프로젝트에 맞게 paths, branches를 커스터마이징하세요.
+
+name: "cikit: CI Check (Ralph Loop)"
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "kits/**"
+      - "pyproject.toml"
+      - "README.md"
+      - ".github/*-governance.md"
+      # TODO: Add project-specific paths
+
+  push:
+    branches: [main]
+
+  workflow_dispatch:
+
+jobs:
+  governance-check-ralph:
+    # PR 머지로 인한 push는 스킵 (PR에서 이미 검증됨)
+    if: >
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       !startsWith(github.event.head_commit.message, 'Merge pull request'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install tools
+        run: |
+          npm install -g @github/copilot
+          npm install -g @th0rgal/ralph-wiggum
+
+      - name: Run Ralph governance check loop
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          COPILOT_MODEL: ${{ vars.COPILOT_MODEL }}
+        run: |
+          MAX_ITER="${{ vars.RALPH_MAX_ITERATIONS }}"
+          MAX_ITER="${MAX_ITER:-10}"
+
+          echo "📋 Running Ralph governance check loop (max ${MAX_ITER} iterations)..."
+          if [ -f ".github/ci/ralph-check-tasks.md" ]; then
+            ralph --prompt-file .github/ci/ralph-check-tasks.md \
+              --agent copilot \
+              --max-iterations "${MAX_ITER}" \
+              --completion-promise "CHECK_PASSED" \
+              --no-commit
+          else
+            echo "⚠️ Ralph task file not found: .github/ci/ralph-check-tasks.md"
+            echo "Run cikit.ci.check (Ralph loop mode) to generate it."
+            exit 1
+          fi
+
+      - name: Upload check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-check-report
+          path: specs_ci/ci-check-report.md
+          if-no-files-found: ignore

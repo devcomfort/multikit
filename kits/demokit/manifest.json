@@ -1,0 +1,15 @@
+{
+  "name": "demokit",
+  "version": "1.0.0",
+  "description": "Demo design and implementation agents — from __main__ blocks to full GUI apps",
+  "agents": [
+    "demokit.build.agent.md",
+    "demokit.design.agent.md",
+    "demokit.help.agent.md"
+  ],
+  "prompts": [
+    "demokit.build.prompt.md",
+    "demokit.design.prompt.md",
+    "demokit.help.prompt.md"
+  ]
+}

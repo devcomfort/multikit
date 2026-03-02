@@ -1,0 +1,15 @@
+{
+  "name": "refactorkit",
+  "version": "2.0.0",
+  "description": "Code quality diagnosis and remediation — unified diagnosis (lint, deprecation, logic, warnings, coverage, leakage) and unified fix with selective keyword support",
+  "agents": [
+    "refactorkit.diagnose.agent.md",
+    "refactorkit.fix.agent.md",
+    "refactorkit.help.agent.md"
+  ],
+  "prompts": [
+    "refactorkit.diagnose.prompt.md",
+    "refactorkit.fix.prompt.md",
+    "refactorkit.help.prompt.md"
+  ]
+}

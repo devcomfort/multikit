@@ -1,0 +1,77 @@
+{
+  "name": "cikit",
+  "version": "2.0.0",
+  "description": "CI/CD pipeline automation — versioning governance, change analysis, version management, and CI check workflows (Copilot CLI / Ralph Wiggum)",
+  "agents": [
+    "cikit.governance.versioning.agent.md",
+    "cikit.analyze.change.agent.md",
+    "cikit.analyze.versioning.agent.md",
+    "cikit.analyze.versioning.update.agent.md",
+    "cikit.ci.governance.agent.md",
+    "cikit.ci.setup.agent.md",
+    "cikit.ci.check.agent.md",
+    "cikit.ci.doctor.agent.md",
+    "cikit.help.agent.md"
+  ],
+  "prompts": [
+    "cikit.governance.versioning.prompt.md",
+    "cikit.analyze.change.prompt.md",
+    "cikit.analyze.versioning.prompt.md",
+    "cikit.analyze.versioning.update.prompt.md",
+    "cikit.ci.governance.prompt.md",
+    "cikit.ci.setup.prompt.md",
+    "cikit.ci.check.prompt.md",
+    "cikit.ci.doctor.prompt.md",
+    "cikit.help.prompt.md"
+  ],
+  "templates": [
+    {
+      "agent": "cikit.governance.versioning",
+      "src": "versioning-governance.template.md",
+      "dest": ".github/versioning-governance.md",
+      "overwrite": false
+    },
+    {
+      "agent": "cikit.analyze.change",
+      "src": "populate-governance.sh",
+      "dest": ".github/scripts/populate-governance.sh",
+      "overwrite": false
+    },
+    {
+      "agent": "cikit.ci.governance",
+      "src": "ci-governance.template.md",
+      "dest": ".github/ci-governance.md",
+      "overwrite": false
+    },
+    {
+      "agent": "cikit.ci.setup",
+      "src": "ci-check-copilot.template.yml",
+      "dest": ".github/workflows/ci-check-copilot.yml",
+      "overwrite": false
+    },
+    {
+      "agent": "cikit.ci.setup",
+      "src": "ci-check-ralph.template.yml",
+      "dest": ".github/workflows/ci-check-ralph.yml",
+      "overwrite": false
+    },
+    {
+      "agent": "cikit.ci.setup",
+      "src": "setup-copilot-ralph.template.sh",
+      "dest": ".github/scripts/setup-copilot-ralph.sh",
+      "overwrite": false
+    },
+    {
+      "agent": "cikit.ci.check",
+      "src": "copilot-check-prompt.template.md",
+      "dest": ".github/ci/copilot-check-prompt.md",
+      "overwrite": false
+    },
+    {
+      "agent": "cikit.ci.check",
+      "src": "ralph-check-tasks.template.md",
+      "dest": ".github/ci/ralph-check-tasks.md",
+      "overwrite": false
+    }
+  ]
+}

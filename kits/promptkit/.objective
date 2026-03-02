@@ -1,0 +1,16 @@
+# promptkit — Objective
+
+## 책임 범위
+
+**프롬프트 설계, 분석, 최적화**를 수행한다.
+
+## 개발 목적
+
+- 프롬프트의 품질을 분석하고 개선 방안을 제시한다.
+- Self-Distillation based Prompt Optimization(SDPO)를 지원한다.
+- Ralph 루프를 활용한 반복적 프롬프트 개선을 수행한다.
+
+## 경계
+
+- 에이전트 생성/등록은 multikit, 코드 품질은 lintkit/refactorkit의 영역이다.
+- promptkit은 "프롬프트를 더 좋게 만드는 것"에 집중한다.

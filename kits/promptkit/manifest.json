@@ -1,0 +1,19 @@
+{
+  "name": "promptkit",
+  "version": "1.0.0",
+  "description": "Prompt design, analysis, and optimization agents — Self-Distillation based Prompt Optimization (SDPO) support",
+  "agents": [
+    "promptkit.analyze.agent.md",
+    "promptkit.help.agent.md",
+    "promptkit.improve.agent.md",
+    "promptkit.script.agent.md",
+    "promptkit.specify.agent.md"
+  ],
+  "prompts": [
+    "promptkit.analyze.prompt.md",
+    "promptkit.help.prompt.md",
+    "promptkit.improve.prompt.md",
+    "promptkit.script.prompt.md",
+    "promptkit.specify.prompt.md"
+  ]
+}
