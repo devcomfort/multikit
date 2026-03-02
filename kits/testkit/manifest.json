@@ -1,15 +1,19 @@
 {
   "name": "testkit",
-  "version": "1.0.0",
-  "description": "Test design, coverage, and demo builder agents",
+  "version": "3.0.0",
+  "description": "Test design, planning, coverage, and analysis agents",
   "agents": [
-    "testkit.python.testdesign.agent.md",
-    "testkit.python.testcoverage.agent.md",
-    "testkit.python.demobuilder.agent.md"
+    "testkit.design.agent.md",
+    "testkit.plan.agent.md",
+    "testkit.coverage.agent.md",
+    "testkit.analyze.agent.md",
+    "testkit.help.agent.md"
   ],
   "prompts": [
-    "testkit.python.testdesign.prompt.md",
-    "testkit.python.testcoverage.prompt.md",
-    "testkit.python.demobuilder.prompt.md"
+    "testkit.analyze.prompt.md",
+    "testkit.coverage.prompt.md",
+    "testkit.design.prompt.md",
+    "testkit.help.prompt.md",
+    "testkit.plan.prompt.md"
   ]
 }

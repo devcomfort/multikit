@@ -2,28 +2,54 @@
   "kits": [
     {
       "name": "testkit",
-      "version": "1.0.0",
-      "description": "Test design and coverage agents"
+      "version": "3.0.0",
+      "description": "Test design, planning, coverage, and analysis agents"
     },
     {
       "name": "gitkit",
-      "version": "1.0.0",
-      "description": "Git commit agents"
+      "version": "1.1.0",
+      "description": "Git commit and changelog agents"
     },
-    {
-      "name": "lintkit",
-      "version": "1.0.0",
-      "description": "Code analysis and linting agents"
-    },
+
     {
       "name": "speckit",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "Specification analysis and clarification agents"
     },
     {
       "name": "multikit",
-      "version": "1.0.1",
-      "description": "Meta-kit for generating and managing multikit agents"
+      "version": "2.0.0",
+      "description": "Meta-kit for generating, improving, registering, and validating multikit agents and prompts"
+    },
+    {
+      "name": "demokit",
+      "version": "1.0.0",
+      "description": "Demo design and implementation agents"
+    },
+    {
+      "name": "cikit",
+      "version": "2.0.0",
+      "description": "CI/CD pipeline automation — versioning governance, change analysis, version management, and CI check workflows (Copilot CLI / Ralph Wiggum)"
+    },
+    {
+      "name": "dockit",
+      "version": "2.0.0",
+      "description": "Documentation governance, generation, and analysis — README and project docs (guides, API reference, architecture docs)"
+    },
+    {
+      "name": "refactorkit",
+      "version": "2.0.0",
+      "description": "Code quality diagnosis and remediation — unified diagnosis (lint, deprecation, logic, warnings, coverage, leakage) and unified fix with selective keyword support"
+    },
+    {
+      "name": "promptkit",
+      "version": "1.0.0",
+      "description": "Prompt design, analysis, and optimization agents — Self-Distillation based Prompt Optimization (SDPO) support"
+    },
+    {
+      "name": "structkit",
+      "version": "2.0.0",
+      "description": "Project structure governance, architecture analysis, and enforcement — directory roles, naming conventions, deployment patterns, architecture patterns, design recommendations, and CI validation"
     }
   ]
 }

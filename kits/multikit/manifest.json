@@ -1,15 +1,19 @@
 {
     "name": "multikit",
-    "version": "1.0.1",
-    "description": "Meta-kit for generating and managing multikit agents",
+    "version": "2.0.0",
+    "description": "Meta-kit for generating, improving, registering, and validating multikit agents and prompts",
     "agents": [
         "multikit.generation.agent.md",
-        "multikit.readme.governance.agent.md",
-        "multikit.readme.proposal.agent.md"
+        "multikit.help.agent.md",
+        "multikit.improve.agent.md",
+        "multikit.register.agent.md",
+        "multikit.validate.agent.md"
     ],
     "prompts": [
         "multikit.generation.prompt.md",
-        "multikit.readme.governance.prompt.md",
-        "multikit.readme.proposal.prompt.md"
+        "multikit.help.prompt.md",
+        "multikit.improve.prompt.md",
+        "multikit.register.prompt.md",
+        "multikit.validate.prompt.md"
     ]
 }

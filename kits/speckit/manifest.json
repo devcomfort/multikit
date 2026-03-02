@@ -1,13 +1,15 @@
 {
     "name": "speckit",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Specification analysis and clarification agents",
     "agents": [
         "speckit.analyze.agent.md",
-        "speckit.clarify.agent.md"
+        "speckit.clarify.agent.md",
+        "speckit.help.agent.md"
     ],
     "prompts": [
         "speckit.analyze.prompt.md",
-        "speckit.clarify.prompt.md"
+        "speckit.clarify.prompt.md",
+        "speckit.help.prompt.md"
     ]
 }

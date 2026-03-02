@@ -1,11 +1,17 @@
 {
   "name": "gitkit",
-  "version": "1.0.0",
-  "description": "Git commit agents for Copilot",
+  "version": "1.2.0",
+  "description": "Git commit, changelog, and PR note agents for Copilot",
   "agents": [
-    "gitkit.commit.agent.md"
+    "gitkit.changelog.agent.md",
+    "gitkit.commit.agent.md",
+    "gitkit.help.agent.md",
+    "gitkit.pr.agent.md"
   ],
   "prompts": [
-    "gitkit.commit.prompt.md"
+    "gitkit.changelog.prompt.md",
+    "gitkit.commit.prompt.md",
+    "gitkit.help.prompt.md",
+    "gitkit.pr.prompt.md"
   ]
 }
