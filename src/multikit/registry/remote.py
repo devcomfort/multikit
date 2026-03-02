@@ -262,16 +262,16 @@ class RemoteClient:
         """Fetch registry.json from remote."""
         url = f"{registry_url}/registry.json"
         resp = await self._fetch_with_retry(url)
-        # raise_for_status() is now handled in _fetch_with_retry
-        data = await resp.json()
+        # raw.githubusercontent.com returns text/plain; skip mimetype check
+        data = await resp.json(content_type=None)
         return Registry.model_validate(data)
 
     async def fetch_manifest(self, registry_url: str, kit_name: str) -> Manifest:
         """Fetch manifest.json for a specific kit."""
         url = f"{registry_url}/{kit_name}/manifest.json"
         resp = await self._fetch_with_retry(url)
-        # raise_for_status() is now handled in _fetch_with_retry
-        data = await resp.json()
+        # raw.githubusercontent.com returns text/plain; skip mimetype check
+        data = await resp.json(content_type=None)
         return Manifest.model_validate(data)
 
     async def fetch_file(
