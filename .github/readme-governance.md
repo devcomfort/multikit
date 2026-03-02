@@ -1,7 +1,7 @@
 # README Governance
 
-- Version: 1.0.0
-- Last Updated: 2026-02-23
+- Version: 1.1.0
+- Last Updated: 2026-03-03
 - Owner: Maintainer (`@devcomfort`)
 - Scope: Repository-level README policy for change-driven maintenance
 
@@ -64,7 +64,25 @@ README 내용 충돌 시 아래 우선순위를 따른다 (상위가 우선).
 
 - 핵심 섹션 삭제(동등 정보가 다른 섹션으로 이동되어 검증 가능하게 대체된 경우 제외)
 
-## 4) Update Triggers from Project Changes
+## 4) Style & Tone
+
+README의 서식, 말투, 구조 기준을 정의한다.
+
+### 언어 및 말투
+
+- **언어**: 한국어 (코드/명령/경로/킷 이름은 영문 유지)
+- **말투**: 기술 문서 격식체 (존댓말, ~합니다/~입니다)
+- **명칭**: 킷 이름은 소문자, 도구 이름은 파일 stem 기준 (예: `testkit.design`)
+
+### 서식 규칙
+
+- **Badge**: 최상단, CI → Coverage → Python Support 순서
+- **코드 블록**: bash 언어 태그 사용, 복사-실행 가능한 형태
+- **테이블**: 킷 목록은 반드시 Markdown 테이블 사용, 좌측 정렬
+- **섹션 구조**: H2 기준 평면 구조, H3은 H2 내부 세분화에만 사용
+- **TOC**: 생략 (GitHub 자동 목차 활용)
+
+## 5) Update Triggers from Project Changes
 
 아래 변경이 발생하면 README 갱신 필요 여부를 반드시 평가한다.
 
@@ -105,28 +123,59 @@ README 내용 충돌 시 아래 우선순위를 따른다 (상위가 우선).
   - 설치 후 예시 구조
   - 프로젝트 구조
 
-## 5) Consistency Rules
+## 6) Consistency Rules
 
 README 제안/수정 시 아래 규칙을 만족해야 한다.
 
 - Naming
   - 도구 이름은 파일 stem 기준으로 표기한다.
-  - 예: `testkit.python.testdesign` ← `testkit.python.testdesign.agent.md`
+  - 예: `testkit.design` ← `testkit.design.agent.md`
 - Version
   - 킷 버전은 각 manifest의 `version`과 동일해야 한다.
 - Count
   - agent/prompt 개수 표기는 manifest 배열 길이와 동일해야 한다.
 - Path examples
-  - 예시 경로는 실제 파일명 패턴(`<kit>.[<language>.]<feature>.agent|prompt.md`)을 따라야 한다.
+  - 예시 경로는 실제 파일명 패턴(`<kit>.<feature>.agent|prompt.md`)을 따라야 한다.
 - Command examples
   - README 명령은 실행 가능한 형식이어야 하며, 현재 CLI와 모순되면 안 된다.
+- Templates
+  - 템플릿은 반드시 **킷 단위**로 관리한다: `kits/{name}/templates/{agent_name}/`
+  - 공유(cross-kit) 템플릿 디렉터리(`kits/templates/`)를 만들지 않는다.
+  - 공유 템플릿이 필요하다고 느끼면, 그것은 **책임 분리가 잘못된 신호**이다 — 해당 템플릿을 사용하는 에이전트가 속한 킷에 귀속시킨다.
 
 검증 기준(테스트 가능성):
 
 - 최소한 변경 제안 시 `kits/registry.json` + 관련 `manifest.json` 파일을 근거로 제시한다.
 - 근거 없는 추측성 수정 제안은 금지한다.
 
-## 6) Proposal and Approval Workflow
+## 7) Quality Standards
+
+README 수정 제안 시 아래 품질 기준을 만족해야 한다.
+
+### 정확성
+
+- 모든 킷 이름/버전/에이전트 수는 `manifest.json`으로 검증 가능해야 한다.
+- CLI 명령 예시는 실제 실행 가능해야 한다.
+- 파일 경로 예시는 실제 프로젝트 구조와 일치해야 한다.
+
+### 완전성
+
+- 핵심 섹션(§3 정의)이 모두 존재해야 한다.
+- 설치 가능한 모든 킷이 표에 포함되어야 한다.
+- 삭제된 킷은 즉시 표에서 제거해야 한다.
+
+### 예시 품질
+
+- 설치/사용법 예시는 초보자가 복사-실행으로 동작 확인 가능해야 한다.
+- `multikit.toml` 예시는 현재 스키마와 일치해야 한다.
+- CLI 출력 예시는 실제 출력 형식을 반영해야 한다.
+
+### 최신성
+
+- 킷 생태계 변경(추가/삭제/통합) 후 README 업데이트 리드타임: 동일 커밋 또는 즉시 후속 커밋
+- 버전 불일치 허용 기간: 없음 (예외 조항 §9 적용 시 제외)
+
+## 8) Proposal and Approval Workflow
 
 README 수정은 기본적으로 proposal-based로 진행한다.
 
@@ -147,7 +196,7 @@ README 수정은 기본적으로 proposal-based로 진행한다.
 - 승인 전 자동 커밋/푸시
 - 근거 없는 스타일-only 대량 변경
 
-## 7) Exception Handling and Ownership
+## 9) Exception Handling and Ownership
 
 예외 허용 조건:
 
@@ -164,7 +213,7 @@ README 수정은 기본적으로 proposal-based로 진행한다.
 - 기본 오너: Maintainer (`@devcomfort`)
 - README 관련 에이전트는 오너의 승인 규칙을 따라야 한다.
 
-## 8) Versioning and Amendment Log
+## 10) Versioning and Amendment Log
 
 버전 규칙:
 
@@ -174,6 +223,10 @@ README 수정은 기본적으로 proposal-based로 진행한다.
 
 ### Amendment Log
 
+- 1.1.0 (2026-03-03)
+  - Style & Tone 섹션 신설 (한국어/격식체/서식 규칙)
+  - Quality Standards 섹션 신설 (정확성/완전성/예시 품질/최신성)
+  - 10개 킷 생태계 반영 (lintkit/archkit 삭제, structkit/dockit 추가, refactorkit 통합)
 - 1.0.0 (2026-02-23)
   - 초기 제정
   - Source of Truth/업데이트 트리거/Proposal-based 워크플로우 정의
