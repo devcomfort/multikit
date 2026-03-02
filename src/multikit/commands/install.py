@@ -139,36 +139,44 @@ async def _install_single_kit(
                 local_file = github_dir / subdir / filename
                 staged_file = staging_dir / subdir / filename
 
-                if local_file.exists() and not overwrite_all and not skip_all:
-                    local_content = local_file.read_text(encoding="utf-8")
-                    remote_content = staged_file.read_text(encoding="utf-8")
+                if not local_file.exists():
+                    # New file — always install
+                    files_to_install.append((subdir, filename))
+                    continue
 
-                    if local_content == remote_content:
-                        print(f"  ✓ {rel_path} (unchanged)")
-                        files_to_install.append((subdir, filename))
-                        continue
+                if overwrite_all:
+                    files_to_install.append((subdir, filename))
+                    continue
 
-                    print(f"\n  Conflict: {rel_path}")
-                    show_diff(local_content, remote_content, filename)
+                local_content = local_file.read_text(encoding="utf-8")
+                remote_content = staged_file.read_text(encoding="utf-8")
 
-                    choice = prompt_overwrite(rel_path)
-                    if choice == "y":
-                        files_to_install.append((subdir, filename))
-                    elif choice == "n":
-                        print(f"  Skipped {rel_path}")
-                        continue
-                    elif choice == "a":
-                        overwrite_all = True
-                        files_to_install.append((subdir, filename))
-                    elif choice == "s":
-                        skip_all = True
-                        print(f"  Skipped {rel_path}")
-                        continue
-                elif skip_all:
+                if local_content == remote_content:
+                    print(f"  ✓ {rel_path} (unchanged)")
+                    files_to_install.append((subdir, filename))
+                    continue
+
+                # Actual conflict: local file exists with different content
+                if skip_all:
                     print(f"  Skipped {rel_path}")
                     continue
-                else:
+
+                print(f"\n  Conflict: {rel_path}")
+                show_diff(local_content, remote_content, filename)
+
+                choice = prompt_overwrite(rel_path)
+                if choice == "y":
                     files_to_install.append((subdir, filename))
+                elif choice == "n":
+                    print(f"  Skipped {rel_path}")
+                    continue
+                elif choice == "a":
+                    overwrite_all = True
+                    files_to_install.append((subdir, filename))
+                elif choice == "s":
+                    skip_all = True
+                    print(f"  Skipped {rel_path}")
+                    continue
 
             # Move files from staging to .github/
             if files_to_install:
