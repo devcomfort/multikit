@@ -19,8 +19,8 @@ SAMPLE_MANIFEST = {
     "name": "testkit",
     "version": "1.1.0",
     "description": "Test kit",
-    "agents": ["testkit.testdesign.agent.md"],
-    "prompts": ["testkit.testdesign.prompt.md"],
+    "agents": ["testkit.design.agent.md"],
+    "prompts": ["testkit.design.prompt.md"],
 }
 
 AGENT_CONTENT = "# Updated Agent\nNew agent content.\n"
@@ -42,8 +42,8 @@ class TestUpdateCommand:
                 "testkit": InstalledKit(
                     version="1.0.0",
                     files=[
-                        "agents/testkit.testdesign.agent.md",
-                        "prompts/testkit.testdesign.prompt.md",
+                        "agents/testkit.design.agent.md",
+                        "prompts/testkit.design.prompt.md",
                     ],
                 )
             }
@@ -54,11 +54,11 @@ class TestUpdateCommand:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 
@@ -112,7 +112,7 @@ class TestUpdateCommand:
             kits={
                 "testkit": InstalledKit(
                     version="1.0.0",
-                    files=["agents/testkit.testdesign.agent.md"],
+                    files=["agents/testkit.design.agent.md"],
                 )
             }
         )
@@ -137,7 +137,7 @@ class TestUpdateCommand:
             kits={
                 "testkit": InstalledKit(
                     version="1.0.0",
-                    files=["agents/testkit.testdesign.agent.md"],
+                    files=["agents/testkit.design.agent.md"],
                 )
             }
         )
@@ -168,8 +168,8 @@ class TestUpdateCommand:
                 "testkit": InstalledKit(
                     version="1.0.0",
                     files=[
-                        "agents/testkit.testdesign.agent.md",
-                        "prompts/testkit.testdesign.prompt.md",
+                        "agents/testkit.design.agent.md",
+                        "prompts/testkit.design.prompt.md",
                     ],
                 )
             }
@@ -181,11 +181,11 @@ class TestUpdateCommand:
         with m:
             m.get(f"{custom_url}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{custom_url}/testkit/agents/testkit.testdesign.agent.md",
+                f"{custom_url}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{custom_url}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{custom_url}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 

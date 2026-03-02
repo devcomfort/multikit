@@ -18,8 +18,8 @@ SAMPLE_MANIFEST = {
     "name": "testkit",
     "version": "1.0.0",
     "description": "Test kit",
-    "agents": ["testkit.testdesign.agent.md"],
-    "prompts": ["testkit.testdesign.prompt.md"],
+    "agents": ["testkit.design.agent.md"],
+    "prompts": ["testkit.design.prompt.md"],
 }
 
 AGENT_CONTENT = "# Test Agent\nSample agent content.\n"
@@ -38,11 +38,11 @@ class TestInstallCommandFresh:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 
@@ -50,16 +50,10 @@ class TestInstallCommandFresh:
 
             # Verify files installed
             agent_file = (
-                initialized_project
-                / ".github"
-                / "agents"
-                / "testkit.testdesign.agent.md"
+                initialized_project / ".github" / "agents" / "testkit.design.agent.md"
             )
             prompt_file = (
-                initialized_project
-                / ".github"
-                / "prompts"
-                / "testkit.testdesign.prompt.md"
+                initialized_project / ".github" / "prompts" / "testkit.design.prompt.md"
             )
             assert agent_file.exists()
             assert agent_file.read_text(encoding="utf-8") == AGENT_CONTENT
@@ -71,7 +65,7 @@ class TestInstallCommandFresh:
             kit = config.get_kit("testkit")
             assert kit is not None
             assert kit.version == "1.0.0"
-            assert "agents/testkit.testdesign.agent.md" in kit.files
+            assert "agents/testkit.design.agent.md" in kit.files
 
 
 class TestInstallCommandErrors:
@@ -123,12 +117,10 @@ class TestInstallCommandErrors:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
-            m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md", status=404
-            )
+            m.get(f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md", status=404)
 
             with pytest.raises(SystemExit) as exc_info:
                 await install_handler("testkit")
@@ -136,10 +128,7 @@ class TestInstallCommandErrors:
 
             # Verify no files were installed (atomic rollback)
             agent_file = (
-                initialized_project
-                / ".github"
-                / "agents"
-                / "testkit.testdesign.agent.md"
+                initialized_project / ".github" / "agents" / "testkit.design.agent.md"
             )
             assert not agent_file.exists()
 
@@ -157,18 +146,18 @@ class TestInstallCommandForce:
         # Pre-install a file with different content
         agent_dir = initialized_project / ".github" / "agents"
         agent_dir.mkdir(parents=True, exist_ok=True)
-        existing = agent_dir / "testkit.testdesign.agent.md"
+        existing = agent_dir / "testkit.design.agent.md"
         existing.write_text("old content", encoding="utf-8")
 
         m = aioresponses()
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 
@@ -189,7 +178,7 @@ class TestInstallCommandConflicts:
 
         agents_dir = initialized_project / ".github" / "agents"
         agents_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "old content\n", encoding="utf-8"
         )
 
@@ -197,11 +186,11 @@ class TestInstallCommandConflicts:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 
@@ -210,7 +199,7 @@ class TestInstallCommandConflicts:
             )
             await install_handler("testkit")
 
-            assert (agents_dir / "testkit.testdesign.agent.md").read_text(
+            assert (agents_dir / "testkit.design.agent.md").read_text(
                 encoding="utf-8"
             ) == AGENT_CONTENT
 
@@ -223,7 +212,7 @@ class TestInstallCommandConflicts:
 
         agents_dir = initialized_project / ".github" / "agents"
         agents_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "old content\n", encoding="utf-8"
         )
 
@@ -231,11 +220,11 @@ class TestInstallCommandConflicts:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 
@@ -244,7 +233,7 @@ class TestInstallCommandConflicts:
             )
             await install_handler("testkit")
 
-            assert (agents_dir / "testkit.testdesign.agent.md").read_text(
+            assert (agents_dir / "testkit.design.agent.md").read_text(
                 encoding="utf-8"
             ) == "old content\n"
 
@@ -257,7 +246,7 @@ class TestInstallCommandConflicts:
 
         agents_dir = initialized_project / ".github" / "agents"
         agents_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "old content\n", encoding="utf-8"
         )
 
@@ -265,11 +254,11 @@ class TestInstallCommandConflicts:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 
@@ -278,7 +267,7 @@ class TestInstallCommandConflicts:
             )
             await install_handler("testkit")
 
-            assert (agents_dir / "testkit.testdesign.agent.md").read_text(
+            assert (agents_dir / "testkit.design.agent.md").read_text(
                 encoding="utf-8"
             ) == AGENT_CONTENT
 
@@ -291,7 +280,7 @@ class TestInstallCommandConflicts:
 
         agents_dir = initialized_project / ".github" / "agents"
         agents_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "old content\n", encoding="utf-8"
         )
 
@@ -299,11 +288,11 @@ class TestInstallCommandConflicts:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 
@@ -312,7 +301,7 @@ class TestInstallCommandConflicts:
             )
             await install_handler("testkit")
 
-            assert (agents_dir / "testkit.testdesign.agent.md").read_text(
+            assert (agents_dir / "testkit.design.agent.md").read_text(
                 encoding="utf-8"
             ) == "old content\n"
 
@@ -325,7 +314,7 @@ class TestInstallCommandConflicts:
 
         agents_dir = initialized_project / ".github" / "agents"
         agents_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             AGENT_CONTENT, encoding="utf-8"
         )
 
@@ -333,11 +322,11 @@ class TestInstallCommandConflicts:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 
@@ -412,7 +401,7 @@ class TestInstallCommandConflicts:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 status=500,
                 body="Internal Server Error",
             )
@@ -432,7 +421,7 @@ class TestInstallCommandConflicts:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 exception=aiohttp.ClientConnectorError(
                     mock.Mock(), OSError("Connection refused")
                 ),
@@ -454,11 +443,11 @@ class TestInstallCommandConflicts:
         with m:
             m.get(f"{custom_url}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{custom_url}/testkit/agents/testkit.testdesign.agent.md",
+                f"{custom_url}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{custom_url}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{custom_url}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 
@@ -478,11 +467,11 @@ class TestInstallCommandConflicts:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body=AGENT_CONTENT,
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body=PROMPT_CONTENT,
             )
 
@@ -734,7 +723,7 @@ class TestInstallHTTPErrors:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 status=404,
             )
             with pytest.raises(SystemExit) as exc_info:
@@ -823,3 +812,115 @@ class TestInstallNetworkErrors:
 
         captured = capsys.readouterr()
         assert "Network error downloading" in captured.err
+
+
+SAMPLE_MANIFEST_WITH_TEMPLATES = {
+    "name": "cikit",
+    "version": "1.0.0",
+    "description": "CI kit with templates",
+    "agents": ["cikit.help.agent.md"],
+    "prompts": ["cikit.help.prompt.md"],
+    "templates": [
+        {
+            "agent": "cikit.governance.readme",
+            "src": "readme-governance.template.md",
+            "dest": ".github/readme-governance.md",
+            "overwrite": False,
+        }
+    ],
+}
+
+TEMPLATE_CONTENT = "# README Governance\n\nTemplate content.\n"
+
+
+class TestInstallWithTemplates:
+    """Tests for kit installation including templates."""
+
+    @pytest.mark.asyncio
+    async def test_install_with_templates(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Install a kit that includes template files."""
+        monkeypatch.chdir(initialized_project)
+
+        m = aioresponses()
+        with m:
+            m.get(
+                f"{BASE_URL}/cikit/manifest.json",
+                payload=SAMPLE_MANIFEST_WITH_TEMPLATES,
+            )
+            m.get(f"{BASE_URL}/cikit/agents/cikit.help.agent.md", body=AGENT_CONTENT)
+            m.get(f"{BASE_URL}/cikit/prompts/cikit.help.prompt.md", body=PROMPT_CONTENT)
+            m.get(
+                f"{BASE_URL}/cikit/templates/cikit.governance.readme/readme-governance.template.md",
+                body=TEMPLATE_CONTENT,
+            )
+
+            await install_handler("cikit")
+
+            # Verify template installed
+            template_file = initialized_project / ".github" / "readme-governance.md"
+            assert template_file.exists()
+            assert template_file.read_text(encoding="utf-8") == TEMPLATE_CONTENT
+
+            # Verify config records templates
+            config = load_config(initialized_project)
+            kit = config.get_kit("cikit")
+            assert kit is not None
+            assert ".github/readme-governance.md" in kit.templates
+
+    @pytest.mark.asyncio
+    async def test_install_template_skip_existing(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Template with overwrite=False is skipped when dest already exists."""
+        monkeypatch.chdir(initialized_project)
+
+        # Pre-create the file with custom content
+        template_dest = initialized_project / ".github" / "readme-governance.md"
+        template_dest.parent.mkdir(parents=True, exist_ok=True)
+        custom_content = "# My custom governance\n"
+        template_dest.write_text(custom_content, encoding="utf-8")
+
+        m = aioresponses()
+        with m:
+            m.get(
+                f"{BASE_URL}/cikit/manifest.json",
+                payload=SAMPLE_MANIFEST_WITH_TEMPLATES,
+            )
+            m.get(f"{BASE_URL}/cikit/agents/cikit.help.agent.md", body=AGENT_CONTENT)
+            m.get(f"{BASE_URL}/cikit/prompts/cikit.help.prompt.md", body=PROMPT_CONTENT)
+            m.get(
+                f"{BASE_URL}/cikit/templates/cikit.governance.readme/readme-governance.template.md",
+                body=TEMPLATE_CONTENT,
+            )
+
+            await install_handler("cikit")
+
+            # Verify custom content is preserved
+            assert template_dest.read_text(encoding="utf-8") == custom_content
+
+    @pytest.mark.asyncio
+    async def test_install_no_templates_backward_compat(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """Manifest without templates field works (backward compatibility)."""
+        monkeypatch.chdir(initialized_project)
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
+            m.get(
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md", body=AGENT_CONTENT
+            )
+            m.get(
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
+                body=PROMPT_CONTENT,
+            )
+
+            await install_handler("testkit")
+
+            config = load_config(initialized_project)
+            kit = config.get_kit("testkit")
+            assert kit is not None
+            assert kit.templates == []

@@ -19,8 +19,8 @@ SAMPLE_MANIFEST = {
     "name": "testkit",
     "version": "1.0.0",
     "description": "Test kit",
-    "agents": ["testkit.testdesign.agent.md"],
-    "prompts": ["testkit.testdesign.prompt.md"],
+    "agents": ["testkit.design.agent.md"],
+    "prompts": ["testkit.design.prompt.md"],
 }
 
 
@@ -39,10 +39,10 @@ class TestDiffCommand:
         prompts_dir = initialized_project / ".github" / "prompts"
         agents_dir.mkdir(parents=True, exist_ok=True)
         prompts_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "old content\n", encoding="utf-8"
         )
-        (prompts_dir / "testkit.testdesign.prompt.md").write_text(
+        (prompts_dir / "testkit.design.prompt.md").write_text(
             "same content\n", encoding="utf-8"
         )
 
@@ -51,8 +51,8 @@ class TestDiffCommand:
                 "testkit": InstalledKit(
                     version="1.0.0",
                     files=[
-                        "agents/testkit.testdesign.agent.md",
-                        "prompts/testkit.testdesign.prompt.md",
+                        "agents/testkit.design.agent.md",
+                        "prompts/testkit.design.prompt.md",
                     ],
                 )
             }
@@ -63,11 +63,11 @@ class TestDiffCommand:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body="new content\n",
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body="same content\n",
             )
 
@@ -90,10 +90,10 @@ class TestDiffCommand:
         prompts_dir = initialized_project / ".github" / "prompts"
         agents_dir.mkdir(parents=True, exist_ok=True)
         prompts_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             content, encoding="utf-8"
         )
-        (prompts_dir / "testkit.testdesign.prompt.md").write_text(
+        (prompts_dir / "testkit.design.prompt.md").write_text(
             content, encoding="utf-8"
         )
 
@@ -102,8 +102,8 @@ class TestDiffCommand:
                 "testkit": InstalledKit(
                     version="1.0.0",
                     files=[
-                        "agents/testkit.testdesign.agent.md",
-                        "prompts/testkit.testdesign.prompt.md",
+                        "agents/testkit.design.agent.md",
+                        "prompts/testkit.design.prompt.md",
                     ],
                 )
             }
@@ -114,10 +114,10 @@ class TestDiffCommand:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md", body=content
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md", body=content
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md", body=content
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md", body=content
             )
 
             await diff_handler("testkit")
@@ -236,7 +236,7 @@ class TestDiffCommand:
             kits={
                 "testkit": InstalledKit(
                     version="1.0.0",
-                    files=["agents/testkit.testdesign.agent.md"],
+                    files=["agents/testkit.design.agent.md"],
                 )
             }
         )
@@ -246,11 +246,11 @@ class TestDiffCommand:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 body="remote content\n",
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body="remote content\n",
             )
 
@@ -272,10 +272,10 @@ class TestDiffCommand:
         prompts_dir = initialized_project / ".github" / "prompts"
         agents_dir.mkdir(parents=True, exist_ok=True)
         prompts_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "content\n", encoding="utf-8"
         )
-        (prompts_dir / "testkit.testdesign.prompt.md").write_text(
+        (prompts_dir / "testkit.design.prompt.md").write_text(
             "content\n", encoding="utf-8"
         )
 
@@ -284,8 +284,8 @@ class TestDiffCommand:
                 "testkit": InstalledKit(
                     version="1.0.0",
                     files=[
-                        "agents/testkit.testdesign.agent.md",
-                        "prompts/testkit.testdesign.prompt.md",
+                        "agents/testkit.design.agent.md",
+                        "prompts/testkit.design.prompt.md",
                     ],
                 )
             }
@@ -295,9 +295,9 @@ class TestDiffCommand:
         m = aioresponses()
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
-            m.get(f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md", status=404)
+            m.get(f"{BASE_URL}/testkit/agents/testkit.design.agent.md", status=404)
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body="content\n",
             )
 
@@ -317,10 +317,10 @@ class TestDiffCommand:
         prompts_dir = initialized_project / ".github" / "prompts"
         agents_dir.mkdir(parents=True, exist_ok=True)
         prompts_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "content\n", encoding="utf-8"
         )
-        (prompts_dir / "testkit.testdesign.prompt.md").write_text(
+        (prompts_dir / "testkit.design.prompt.md").write_text(
             "content\n", encoding="utf-8"
         )
 
@@ -329,8 +329,8 @@ class TestDiffCommand:
                 "testkit": InstalledKit(
                     version="1.0.0",
                     files=[
-                        "agents/testkit.testdesign.agent.md",
-                        "prompts/testkit.testdesign.prompt.md",
+                        "agents/testkit.design.agent.md",
+                        "prompts/testkit.design.prompt.md",
                     ],
                 )
             }
@@ -341,13 +341,13 @@ class TestDiffCommand:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 exception=aiohttp.ClientConnectorError(
                     mock.Mock(), OSError("Connection refused")
                 ),
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 body="content\n",
             )
 
@@ -367,10 +367,10 @@ class TestDiffCommand:
         prompts_dir = initialized_project / ".github" / "prompts"
         agents_dir.mkdir(parents=True, exist_ok=True)
         prompts_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "old agent\n", encoding="utf-8"
         )
-        (prompts_dir / "testkit.testdesign.prompt.md").write_text(
+        (prompts_dir / "testkit.design.prompt.md").write_text(
             "old prompt\n", encoding="utf-8"
         )
 
@@ -379,8 +379,8 @@ class TestDiffCommand:
                 "testkit": InstalledKit(
                     version="1.0.0",
                     files=[
-                        "agents/testkit.testdesign.agent.md",
-                        "prompts/testkit.testdesign.prompt.md",
+                        "agents/testkit.design.agent.md",
+                        "prompts/testkit.design.prompt.md",
                     ],
                 )
             }
@@ -391,13 +391,13 @@ class TestDiffCommand:
         with m:
             m.get(f"{BASE_URL}/testkit/manifest.json", payload=SAMPLE_MANIFEST)
             m.get(
-                f"{BASE_URL}/testkit/agents/testkit.testdesign.agent.md",
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
                 exception=aiohttp.ClientConnectorError(
                     mock.Mock(), OSError("DNS error")
                 ),
             )
             m.get(
-                f"{BASE_URL}/testkit/prompts/testkit.testdesign.prompt.md",
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
                 exception=aiohttp.ClientConnectorError(
                     mock.Mock(), OSError("DNS error")
                 ),
@@ -515,7 +515,7 @@ class TestDiffHTTPErrors:
             kits={
                 "testkit": InstalledKit(
                     version="1.0.0",
-                    files=["agents/testkit.testdesign.agent.md"],
+                    files=["agents/testkit.design.agent.md"],
                 )
             }
         )
@@ -542,7 +542,7 @@ class TestDiffHTTPErrors:
             kits={
                 "testkit": InstalledKit(
                     version="1.0.0",
-                    files=["agents/testkit.testdesign.agent.md"],
+                    files=["agents/testkit.design.agent.md"],
                 )
             }
         )
@@ -629,10 +629,10 @@ class TestDiffNetworkErrors:
         prompts_dir = initialized_project / ".github" / "prompts"
         agents_dir.mkdir(parents=True, exist_ok=True)
         prompts_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "content\n", encoding="utf-8"
         )
-        (prompts_dir / "testkit.testdesign.prompt.md").write_text(
+        (prompts_dir / "testkit.design.prompt.md").write_text(
             "content\n", encoding="utf-8"
         )
 
@@ -641,8 +641,8 @@ class TestDiffNetworkErrors:
                 "testkit": InstalledKit(
                     version="1.0.0",
                     files=[
-                        "agents/testkit.testdesign.agent.md",
-                        "prompts/testkit.testdesign.prompt.md",
+                        "agents/testkit.design.agent.md",
+                        "prompts/testkit.design.prompt.md",
                     ],
                 )
             }
@@ -687,10 +687,10 @@ class TestDiffNetworkErrors:
         prompts_dir = initialized_project / ".github" / "prompts"
         agents_dir.mkdir(parents=True, exist_ok=True)
         prompts_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "content\n", encoding="utf-8"
         )
-        (prompts_dir / "testkit.testdesign.prompt.md").write_text(
+        (prompts_dir / "testkit.design.prompt.md").write_text(
             "content\n", encoding="utf-8"
         )
 
@@ -699,8 +699,8 @@ class TestDiffNetworkErrors:
                 "testkit": InstalledKit(
                     version="1.0.0",
                     files=[
-                        "agents/testkit.testdesign.agent.md",
-                        "prompts/testkit.testdesign.prompt.md",
+                        "agents/testkit.design.agent.md",
+                        "prompts/testkit.design.prompt.md",
                     ],
                 )
             }

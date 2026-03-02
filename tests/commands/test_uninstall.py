@@ -23,8 +23,8 @@ class TestUninstallCommand:
         # Create installed files
         agents_dir = initialized_project / ".github" / "agents"
         prompts_dir = initialized_project / ".github" / "prompts"
-        agent_file = agents_dir / "testkit.testdesign.agent.md"
-        prompt_file = prompts_dir / "testkit.testdesign.prompt.md"
+        agent_file = agents_dir / "testkit.design.agent.md"
+        prompt_file = prompts_dir / "testkit.design.prompt.md"
         agent_file.write_text("agent content", encoding="utf-8")
         prompt_file.write_text("prompt content", encoding="utf-8")
 
@@ -34,8 +34,8 @@ class TestUninstallCommand:
                 "testkit": InstalledKit(
                     version="1.0.0",
                     files=[
-                        "agents/testkit.testdesign.agent.md",
-                        "prompts/testkit.testdesign.prompt.md",
+                        "agents/testkit.design.agent.md",
+                        "prompts/testkit.design.prompt.md",
                     ],
                 )
             }
@@ -77,7 +77,7 @@ class TestUninstallCommand:
             kits={
                 "testkit": InstalledKit(
                     version="1.0.0",
-                    files=["agents/testkit.testdesign.agent.md"],
+                    files=["agents/testkit.design.agent.md"],
                 )
             }
         )
@@ -169,14 +169,14 @@ class TestUninstallWrapperFunction:
         # Create installed files and config
         agents_dir = initialized_project / ".github" / "agents"
         agents_dir.mkdir(parents=True, exist_ok=True)
-        agent_file = agents_dir / "testkit.testdesign.agent.md"
+        agent_file = agents_dir / "testkit.design.agent.md"
         agent_file.write_text("agent content", encoding="utf-8")
 
         config = MultikitConfig(
             kits={
                 "testkit": InstalledKit(
                     version="1.0.0",
-                    files=["agents/testkit.testdesign.agent.md"],
+                    files=["agents/testkit.design.agent.md"],
                 )
             }
         )

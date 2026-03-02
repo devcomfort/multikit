@@ -10,7 +10,31 @@ from multikit.models.config import (
     MultikitConfig,
     NetworkConfig,
 )
-from multikit.models.kit import Manifest, Registry, RegistryEntry
+from multikit.models.kit import Manifest, Registry, RegistryEntry, TemplateEntry
+
+
+class TestTemplateEntry:
+    """Tests for TemplateEntry model."""
+
+    def test_valid_template_entry(self) -> None:
+        entry = TemplateEntry(
+            agent="cikit.governance.readme",
+            src="readme-governance.template.md",
+            dest=".github/readme-governance.md",
+        )
+        assert entry.agent == "cikit.governance.readme"
+        assert entry.src == "readme-governance.template.md"
+        assert entry.dest == ".github/readme-governance.md"
+        assert entry.overwrite is False
+
+    def test_overwrite_true(self) -> None:
+        entry = TemplateEntry(
+            agent="cikit.governance.readme",
+            src="readme-governance.template.md",
+            dest=".github/readme-governance.md",
+            overwrite=True,
+        )
+        assert entry.overwrite is True
 
 
 class TestManifest:
@@ -63,8 +87,8 @@ class TestManifest:
         m = Manifest(**sample_manifest)
         files = m.all_files
         assert len(files) == 4
-        assert ("agents", "testkit.testdesign.agent.md") in files
-        assert ("prompts", "testkit.testdesign.prompt.md") in files
+        assert ("agents", "testkit.design.agent.md") in files
+        assert ("prompts", "testkit.design.prompt.md") in files
 
     def test_empty_agents_and_prompts(self) -> None:
         m = Manifest(name="empty-kit", version="1.0.0")
@@ -77,6 +101,50 @@ class TestManifest:
         m = Manifest.model_validate_json(json_str)
         assert m.name == "testkit"
         assert m.agents == ["x.agent.md"]
+
+    def test_templates_default_empty(self) -> None:
+        m = Manifest(name="testkit", version="1.0.0")
+        assert m.templates == []
+
+    def test_templates_in_manifest(self) -> None:
+        m = Manifest(
+            name="cikit",
+            version="1.0.0",
+            agents=["cikit.help.agent.md"],
+            prompts=["cikit.help.prompt.md"],
+            templates=[
+                TemplateEntry(
+                    agent="cikit.governance.readme",
+                    src="readme-governance.template.md",
+                    dest=".github/readme-governance.md",
+                )
+            ],
+        )
+        assert len(m.templates) == 1
+        assert m.templates[0].agent == "cikit.governance.readme"
+
+    def test_template_files_property(self) -> None:
+        m = Manifest(
+            name="cikit",
+            version="1.0.0",
+            templates=[
+                TemplateEntry(
+                    agent="cikit.governance.readme",
+                    src="readme-governance.template.md",
+                    dest=".github/readme-governance.md",
+                )
+            ],
+        )
+        tf = m.template_files
+        assert len(tf) == 1
+        subdir, filename, entry = tf[0]
+        assert subdir == "templates/cikit.governance.readme"
+        assert filename == "readme-governance.template.md"
+        assert entry.dest == ".github/readme-governance.md"
+
+    def test_template_files_empty_when_no_templates(self) -> None:
+        m = Manifest(name="testkit", version="1.0.0")
+        assert m.template_files == []
 
 
 class TestRegistryEntry:
@@ -136,6 +204,16 @@ class TestInstalledKit:
         kit = InstalledKit(version="1.0.0")
         assert kit.source == "remote"
         assert kit.files == []
+        assert kit.templates == []
+
+    def test_with_templates(self) -> None:
+        kit = InstalledKit(
+            version="1.0.0",
+            source="remote",
+            files=["agents/test.agent.md"],
+            templates=[".github/readme-governance.md"],
+        )
+        assert kit.templates == [".github/readme-governance.md"]
 
 
 class TestMultikitConfig:

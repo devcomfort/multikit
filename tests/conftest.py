@@ -38,12 +38,12 @@ def sample_manifest() -> dict:
         "version": "1.0.0",
         "description": "Test design and coverage agents",
         "agents": [
-            "testkit.testdesign.agent.md",
-            "testkit.testcoverage.agent.md",
+            "testkit.design.agent.md",
+            "testkit.coverage.agent.md",
         ],
         "prompts": [
-            "testkit.testdesign.prompt.md",
-            "testkit.testcoverage.prompt.md",
+            "testkit.design.prompt.md",
+            "testkit.coverage.prompt.md",
         ],
     }
 

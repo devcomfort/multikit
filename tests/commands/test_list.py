@@ -198,7 +198,7 @@ class TestListRemoteFetchFailure:
         # Create local kit
         agents_dir = initialized_project / ".github" / "agents"
         agents_dir.mkdir(parents=True, exist_ok=True)
-        (agents_dir / "testkit.testdesign.agent.md").write_text(
+        (agents_dir / "testkit.design.agent.md").write_text(
             "agent content\n", encoding="utf-8"
         )
 
@@ -209,7 +209,7 @@ class TestListRemoteFetchFailure:
             kits={
                 "testkit": InstalledKit(
                     version="1.0.0",
-                    files=["agents/testkit.testdesign.agent.md"],
+                    files=["agents/testkit.design.agent.md"],
                 )
             }
         )
