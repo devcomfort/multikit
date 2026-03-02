@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
 from multikit.models.config import InstalledKit, MultikitConfig, NetworkConfig
 from multikit.utils.toml_io import (

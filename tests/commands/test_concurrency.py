@@ -9,7 +9,7 @@ import pytest
 
 from multikit.models.config import InstalledKit, MultikitConfig
 from multikit.utils.toml_io import load_config, save_config
-from multikit.commands.install import install_handler, handler as install_async_handler
+from multikit.commands.install import handler as install_async_handler
 
 
 class TestConcurrentInstalls:

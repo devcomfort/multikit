@@ -4,15 +4,11 @@ from __future__ import annotations
 
 import sys
 from threading import Thread
-from typing import TYPE_CHECKING
 
 import questionary
 
 from multikit.models.config import MultikitConfig
 from multikit.models.kit import Registry
-
-if TYPE_CHECKING:
-    import asyncio
 
 
 def select_installable_kits(

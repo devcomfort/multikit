@@ -355,6 +355,6 @@ class TestFullWorkflow:
         assert "demokit" in r.stdout
         # Should show as Available, not Installed
         output_lines = r.stdout.splitlines()
-        demokit_lines = [l for l in output_lines if "demokit" in l]
+        demokit_lines = [line for line in output_lines if "demokit" in line]
         for line in demokit_lines:
             assert "Installed" not in line or "Available" in line
