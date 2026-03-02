@@ -78,6 +78,7 @@ async def handler(
                 project_dir=project_dir,
                 github_dir=github_dir,
                 registry_url=registry_url,
+                force=force,
             ):
                 failed.append(name)
 
