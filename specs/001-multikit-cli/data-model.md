@@ -112,9 +112,9 @@ max_concurrency = 8
 version = "1.0.0"
 source = "remote"
 files = [
-  "agents/testkit.testdesign.agent.md",
-  "agents/testkit.testcoverage.agent.md",
-  "prompts/testkit.testdesign.prompt.md",
-  "prompts/testkit.testcoverage.prompt.md",
+  "agents/testkit.design.agent.md",
+  "agents/testkit.coverage.agent.md",
+  "prompts/testkit.design.prompt.md",
+  "prompts/testkit.coverage.prompt.md",
 ]
 ```

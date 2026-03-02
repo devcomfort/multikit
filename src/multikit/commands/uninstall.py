@@ -30,10 +30,20 @@ def _uninstall_single_kit(
     assert kit_info is not None
 
     deleted = delete_kit_files(github_dir, kit_info.files)
+
+    # Delete template files
+    template_deleted = 0
+    for template_path in kit_info.templates:
+        target = project_dir / template_path
+        if target.exists():
+            target.unlink()
+            template_deleted += 1
+
     del config.kits[kit_name]
     save_config(project_dir, config)
 
-    print(f"✓ Uninstalled {kit_name} ({deleted} files removed)")
+    total_deleted = deleted + template_deleted
+    print(f"✓ Uninstalled {kit_name} ({total_deleted} files removed)")
     return True
 
 

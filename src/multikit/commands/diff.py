@@ -98,6 +98,41 @@ async def _diff_single_kit(
         else:
             unchanged += 1
 
+    # Diff template files
+    for subdir, filename, entry in manifest.template_files:
+        local_path = project_dir / entry.dest
+
+        try:
+            remote_content = await fetch_file(
+                config.registry_url, kit_name, subdir, filename
+            )
+        except (RemoteFetchError, aiohttp.ClientResponseError, aiohttp.ClientError):
+            print(
+                f"  ⚠ Could not fetch remote template {subdir}/{filename}",
+                file=sys.stderr,
+            )
+            continue
+
+        if not local_path.exists():
+            print(f"  ✗ Template missing: {entry.dest}")
+            changed += 1
+            continue
+
+        local_content = local_path.read_text(encoding="utf-8")
+
+        diff_lines = generate_diff(
+            local_content,
+            remote_content,
+            old_label=f"local/{entry.dest}",
+            new_label=f"remote/{filename}",
+        )
+
+        if diff_lines:
+            print_colored_diff(diff_lines)
+            changed += 1
+        else:
+            unchanged += 1
+
     print()
     if changed == 0:
         print(f"✓ No changes detected for {kit_name}")

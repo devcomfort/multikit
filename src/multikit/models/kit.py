@@ -7,6 +7,24 @@ import re
 from pydantic import BaseModel, Field, field_validator
 
 
+class TemplateEntry(BaseModel):
+    """A single template declaration in a kit manifest."""
+
+    agent: str = Field(
+        description="Agent name that owns this template (e.g., 'cikit.governance.readme')"
+    )
+    src: str = Field(
+        description="Source filename inside templates/{agent}/ (e.g., 'readme-governance.template.md')"
+    )
+    dest: str = Field(
+        description="Destination path relative to project root (e.g., '.github/readme-governance.md')"
+    )
+    overwrite: bool = Field(
+        default=False,
+        description="If False, skip when dest already exists (preserve customization)",
+    )
+
+
 class Manifest(BaseModel):
     """A kit's manifest.json — declares files to install."""
 
@@ -15,11 +33,15 @@ class Manifest(BaseModel):
     description: str = Field(default="", description="Human-readable description")
     agents: list[str] = Field(
         default_factory=list,
-        description="Agent filenames (e.g., ['testkit.testdesign.agent.md'])",
+        description="Agent filenames (e.g., ['testkit.design.agent.md'])",
     )
     prompts: list[str] = Field(
         default_factory=list,
-        description="Prompt filenames (e.g., ['testkit.testdesign.prompt.md'])",
+        description="Prompt filenames (e.g., ['testkit.design.prompt.md'])",
+    )
+    templates: list[TemplateEntry] = Field(
+        default_factory=list,
+        description="Template files to copy into consumer projects",
     )
 
     @field_validator("name")
@@ -63,13 +85,26 @@ class Manifest(BaseModel):
 
     @property
     def all_files(self) -> list[tuple[str, str]]:
-        """Return list of (subdir, filename) pairs for all declared files."""
+        """Return list of (subdir, filename) pairs for agents and prompts."""
         files: list[tuple[str, str]] = []
         for agent in self.agents:
             files.append(("agents", agent))
         for prompt in self.prompts:
             files.append(("prompts", prompt))
         return files
+
+    @property
+    def template_files(self) -> list[tuple[str, str, TemplateEntry]]:
+        """Return list of (remote_subdir, filename, entry) for all templates.
+
+        remote_subdir is the path inside the kit on the registry,
+        e.g. 'templates/cikit.governance.readme/readme-governance.template.md'
+        """
+        result: list[tuple[str, str, TemplateEntry]] = []
+        for entry in self.templates:
+            subdir = f"templates/{entry.agent}"
+            result.append((subdir, entry.src, entry))
+        return result
 
 
 class RegistryEntry(BaseModel):

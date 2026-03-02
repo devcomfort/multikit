@@ -17,6 +17,10 @@ class InstalledKit(BaseModel):
         default_factory=list,
         description="List of installed file paths relative to .github/",
     )
+    templates: list[str] = Field(
+        default_factory=list,
+        description="List of installed template dest paths relative to project root",
+    )
 
 
 class NetworkConfig(BaseModel):

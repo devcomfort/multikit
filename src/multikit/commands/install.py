@@ -57,7 +57,7 @@ async def _install_single_kit(
         print(f"✗ Network error: {exc}", file=sys.stderr)
         return False
 
-    if not manifest.agents and not manifest.prompts:
+    if not manifest.agents and not manifest.prompts and not manifest.templates:
         print(f"⚠ Kit '{kit_name}' declares no files to install", file=sys.stderr)
 
     # Download all files atomically to temp dir
@@ -65,6 +65,39 @@ async def _install_single_kit(
     try:
         with atomic_staging() as staging_dir:
             for subdir, filename in manifest.all_files:
+                print(f"  Downloading {subdir}/{filename}...")
+                try:
+                    content = await fetch_file(registry_url, kit_name, subdir, filename)
+                except RemoteFetchError as exc:
+                    print(
+                        f"✗ Failed to download {subdir}/{filename} after {exc.attempts} attempts: {exc}",
+                        file=sys.stderr,
+                    )
+                    return False
+                except aiohttp.ClientResponseError as exc:
+                    if exc.status == 404:
+                        print(
+                            f"✗ File not found: {subdir}/{filename}",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print(
+                            f"✗ HTTP error {exc.status} downloading "
+                            f"{subdir}/{filename}",
+                            file=sys.stderr,
+                        )
+                    return False
+                except aiohttp.ClientError as exc:
+                    print(
+                        f"✗ Network error downloading {subdir}/{filename}: {exc}",
+                        file=sys.stderr,
+                    )
+                    return False
+
+                stage_file(staging_dir, subdir, filename, content)
+
+            # Download template files
+            for subdir, filename, _entry in manifest.template_files:
                 print(f"  Downloading {subdir}/{filename}...")
                 try:
                     content = await fetch_file(registry_url, kit_name, subdir, filename)
@@ -145,6 +178,43 @@ async def _install_single_kit(
             else:
                 installed_paths = []
 
+            # Install templates to their dest paths
+            installed_template_paths: list[str] = []
+            for subdir, filename, entry in manifest.template_files:
+                staged_file = staging_dir / subdir / filename
+                dest_file = project_dir / entry.dest
+
+                if dest_file.exists() and not entry.overwrite and not force:
+                    print(f"  ✓ {entry.dest} (already exists, skipped)")
+                    installed_template_paths.append(entry.dest)
+                    continue
+
+                if dest_file.exists() and not force:
+                    local_content = dest_file.read_text(encoding="utf-8")
+                    remote_content = staged_file.read_text(encoding="utf-8")
+
+                    if local_content == remote_content:
+                        print(f"  ✓ {entry.dest} (unchanged)")
+                        installed_template_paths.append(entry.dest)
+                        continue
+
+                    print(f"\n  Template conflict: {entry.dest}")
+                    show_diff(local_content, remote_content, filename)
+
+                    choice = prompt_overwrite(entry.dest)
+                    if choice in ("n", "s"):
+                        print(f"  Skipped {entry.dest}")
+                        installed_template_paths.append(entry.dest)
+                        continue
+
+                # Copy template to dest
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
+                import shutil
+
+                shutil.copy2(str(staged_file), str(dest_file))
+                print(f"  ✓ {entry.dest} (template installed)")
+                installed_template_paths.append(entry.dest)
+
     except Exception as exc:
         print(f"✗ Installation failed: {exc}", file=sys.stderr)
         return False
@@ -154,6 +224,7 @@ async def _install_single_kit(
         version=manifest.version,
         source="remote",
         files=installed_paths,
+        templates=installed_template_paths,
     )
     save_config(project_dir, config)
 
