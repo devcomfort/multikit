@@ -1,5 +1,18 @@
 ---
 description: "Analyze Git changes, group them into logical commit units, and propose Conventional Commits. Execute commits only after user review."
+handoffs:
+  - label: Run lint check before commit
+    agent: refactorkit.diagnose
+    prompt: Run ruff, mypy, and Pylance diagnostics on the changed files before committing.
+  - label: Analyze changes for docs
+    agent: cikit.analyze.change
+    prompt: Analyze the committed changes and produce a change analysis document.
+  - label: Generate changelog
+    agent: gitkit.changelog
+    prompt: Generate or update CHANGELOG.md from the recent commits.
+  - label: Generate PR note
+    agent: gitkit.pr
+    prompt: Generate a structured PR description for the committed changes.
 ---
 
 ## User Input

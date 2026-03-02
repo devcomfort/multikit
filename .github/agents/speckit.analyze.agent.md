@@ -1,5 +1,12 @@
 ---
 description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.
+handoffs:
+  - label: Clarify ambiguities found in analysis
+    agent: speckit.clarify
+    prompt: Run clarification on the ambiguities identified in the analysis report.
+  - label: Design tests from analyzed spec
+    agent: testkit.design
+    prompt: Design test cases based on the analyzed specification artifacts.
 ---
 
 ## User Input
@@ -12,13 +19,28 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This command MUST run only after `/speckit.tasks` has successfully produced a complete `tasks.md`.
+Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This analysis MUST run only after a complete `tasks.md` has been produced.
 
 ## Operating Constraints
 
 **STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
 
 **Constitution Authority**: The project constitution (`.specify/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit.analyze`.
+
+## Information Sufficiency Gate
+
+실행 단계에 진입하기 전에, 아래 필수 정보를 **모두** 확보해야 한다.
+하나라도 미확보 시, 해당 항목을 먼저 수집한다.
+
+| #   | 필수 정보            | 확보 방법                           |
+| --- | -------------------- | ----------------------------------- |
+| 1   | 분석 대상 사양 문서  | specs/{feature}/spec.md 존재 확인   |
+| 2   | 설계 산출물          | plan.md, tasks.md 존재 확인         |
+| 3   | 프로젝트 컨벤션 문서 | constitution.md, 프로젝트 설정 확인 |
+
+> **미확보 항목이 있으면**: "⚠️ {항목}을 아직 확인하지 못했습니다. {방법}을 시도합니다."
+>
+> **모두 확보 시**: "✅ 충분한 정보를 확보했습니다. [수집 정보 요약] 실행 단계로 진입합니다."
 
 ## Execution Steps
 
@@ -266,9 +288,9 @@ For each finding, output this block:
 
 At end of report, output a concise Next Actions block:
 
-- If CRITICAL issues exist: Recommend resolving before `/speckit.implement`
+- If CRITICAL issues exist: Recommend resolving before implementation
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
-- Provide explicit command suggestions: e.g., "Run /speckit.specify with refinement", "Run /speckit.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
+- Provide explicit next-step suggestions: e.g., "Run /speckit.clarify to resolve ambiguities", "Update plan.md to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
 ### 8. Offer Remediation
 

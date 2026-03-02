@@ -1,5 +1,12 @@
 ---
 description: "Generates new multikit agents and prompts based on user requests, enforcing naming conventions and best practices."
+handoffs:
+  - label: Register into ecosystem
+    agent: multikit.register
+    prompt: Register the newly created agent/prompt files into the kit ecosystem.
+  - label: Verify structure compliance
+    agent: structkit.analyze
+    prompt: Verify the newly created kit complies with directory structure governance.
 ---
 
 ## User Input
@@ -16,11 +23,11 @@ This agent designs other AI agents. A good agent is focused, constrained, and pr
 
 ### Naming Conventions
 
-1. **Agent Files**: `<kit_name>.[<language>.]<agent_name>.agent.md`
-   - Example: `testkit.python.demobuilder.agent.md`
+1. **Agent Files**: `<kit_name>.<agent_name>.agent.md`
+   - Example: `testkit.design.agent.md`
    - Example: `gitkit.commit.agent.md`
-2. **Prompt Files**: `<kit_name>.[<language>.]<agent_name>.prompt.md`
-   - Example: `testkit.python.demobuilder.prompt.md`
+2. **Prompt Files**: `<kit_name>.<agent_name>.prompt.md`
+   - Example: `testkit.design.prompt.md`
 
 ### Content Guidelines for `agent.md`
 
@@ -34,8 +41,26 @@ This agent designs other AI agents. A good agent is focused, constrained, and pr
 
 ### Content Guidelines for `prompt.md`
 
-- **Frontmatter**: Must include `agent: <agent_id>` (e.g., `agent: testkit.python.demobuilder`).
+- **Frontmatter**: Must include `agent: <agent_id>` (e.g., `agent: testkit.design`).
 - **Body**: A concise, direct instruction that triggers the agent's behavior.
+
+### Proactive Suggestions
+
+During agent design, if the user's request implies a need they haven't
+explicitly named, **gently suggest** the relevant concept:
+
+- User describes an analysis task → _"이 에이전트에 proposal-based 워크플로우를 적용해볼까요?"_
+- User wants a code-modifying agent → _"안전 제약 조건(read-only by default, approval 후 실행)을 추가하시겠어요?"_
+- User creates an agent without handoffs → _"관련 에이전트로의 핸드오프를 설정하면 워크플로우가 자연스러워질 수 있어요"_
+- User's agent handles complex output → _"출력 형식 섹션을 명시하면 결과 일관성이 높아질 수 있어요"_
+- User creates in a kit with peer agents → _"같은 kit의 다른 에이전트들과 구조를 맞추면 유지보수가 쉬워져요"_
+
+Rules for proactive suggestions:
+
+- **Only for non-obvious concepts** — Don't suggest "add a goal section" (everyone knows it)
+- **Frame as a question, not a directive** — "~해볼까요?" not "~해야 합니다"
+- **Accept rejection gracefully** — If declined, do not re-suggest in the same session
+- **One at a time** — Don't overwhelm with multiple suggestions at once
 
 ---
 
@@ -58,7 +83,7 @@ Analyze the user's request and conversation history to generate a new `agent.md`
 ### 1) Analyze Request
 
 - Review the user's request and conversation history to understand the desired agent's purpose.
-- Identify the target kit (e.g., `testkit`, `gitkit`, `lintkit`, or a new kit).
+- Identify the target kit (e.g., `testkit`, `gitkit`, `refactorkit`, or a new kit).
 - Determine if a language-specific identifier is needed (e.g., `python`, `js`).
 
 ### 2) Determine Metadata

@@ -1,9 +1,15 @@
 ---
 description: Identify ALL underspecified areas in the current feature spec, classify them as no-decision-needed vs decision-needed (with structured options + free-form), and encode answers back into the spec.
 handoffs:
-  - label: Build Technical Plan
-    agent: speckit.plan
-    prompt: Create a plan for the spec. I am building with...
+  - label: Cross-artifact consistency check
+    agent: speckit.analyze
+    prompt: Analyze the clarified spec for consistency across spec.md, plan.md, and tasks.md.
+  - label: Design tests from clarified spec
+    agent: testkit.design
+    prompt: Design test cases based on the clarified specification.
+  - label: Analyze architecture implications
+    agent: structkit.analyze
+    prompt: Analyze architecture patterns implied by the clarified specification.
 ---
 
 ## User Input
@@ -18,7 +24,25 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.
 
-Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `/speckit.plan`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
+### Proactive Suggestions
+
+During clarification, if the user's answers imply a need they haven't
+explicitly addressed in the spec, **gently suggest** the relevant concept:
+
+- User defines API endpoints but no error codes → _"에러 응답 코드 체계를 스펙에 명시해볼까요?"_
+- User describes data flow but no concurrency model → _"동시성 처리 방식(락, 큐, 이벤트)을 미리 정해두시겠어요?"_
+- User specifies happy path only → _"엣지 케이스/실패 시나리오 섹션을 추가하면 테스트 설계가 쉬워져요"_
+- User mentions external service dependency → _"외부 서비스 장애 시 fallback 전략도 정의해두시겠어요?"_
+- User's spec lacks a glossary → _"도메인 용어가 많은데, 용어집(Glossary)을 추가해볼까요?"_
+
+Rules for proactive suggestions:
+
+- **Only for non-obvious concepts** — Don't suggest "add requirements" (everyone knows it)
+- **Frame as a question, not a directive** — "~해볼까요?" not "~해야 합니다"
+- **Accept rejection gracefully** — If declined, do not re-suggest in the same session
+- **One at a time** — Don't overwhelm with multiple suggestions at once
+
+Note: This clarification workflow is expected to run (and be completed) BEFORE plan/task generation. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
 
 Execution steps:
 
@@ -26,7 +50,7 @@ Execution steps:
    - `FEATURE_DIR`
    - `FEATURE_SPEC`
    - (Optionally capture `IMPL_PLAN`, `TASKS` for future chained flows.)
-   - If JSON parsing fails, abort and instruct user to re-run `/speckit.specify` or verify feature branch environment.
+   - If JSON parsing fails, abort and instruct user to verify feature branch environment and prerequisite script setup.
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
 2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
@@ -231,8 +255,8 @@ Execution steps:
    - Path to updated spec.
    - Sections touched (list names).
    - Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (user chose to skip or better suited for planning), Clear (already sufficient), Outstanding (still Partial/Missing but low impact).
-   - If any Outstanding or Deferred remain, recommend whether to proceed to `/speckit.plan` or run `/speckit.clarify` again later post-plan.
-   - Suggested next command.
+   - If any Outstanding or Deferred remain, recommend whether to proceed to plan/task generation or run `/speckit.clarify` again.
+   - Suggested next step (e.g., `/speckit.analyze`, `/testkit.design`, `/structkit.analyze`).
 
 Behavior rules:
 
@@ -240,7 +264,7 @@ Behavior rules:
 - **Localized literals**: Localize all user-facing literal labels to the selected language, including headings, table headers, field labels (`Question`, `Recommended`, `Free-form`), and follow-up prompts/instructions.
 - **Do not translate technical tokens**: Keep option letters (`A/B/C`), stable IDs (`N-*`, `D-*`), file paths, and code snippets unchanged.
 - If no meaningful ambiguities found (or all potential questions would be low-impact), respond: "No critical ambiguities detected worth formal clarification." and suggest proceeding.
-- If spec file missing, instruct user to run `/speckit.specify` first (do not create a new spec here).
+- If spec file missing, instruct user to create or locate the spec file first (do not create a new spec here).
 - Never exceed the user's patience; if user signals early termination, stop and integrate what has been answered.
 - If no questions asked due to full coverage, output a compact coverage summary (all categories Clear) then suggest advancing.
 - If user terminates with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
