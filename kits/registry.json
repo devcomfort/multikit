@@ -1,11 +1,6 @@
 {
   "kits": [
     {
-      "name": "testkit",
-      "version": "3.0.0",
-      "description": "Test design, planning, coverage, and analysis agents"
-    },
-    {
       "name": "gitkit",
       "version": "1.2.0",
       "description": "Git commit and changelog agents"
