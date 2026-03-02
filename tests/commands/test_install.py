@@ -924,3 +924,149 @@ class TestInstallWithTemplates:
             kit = config.get_kit("testkit")
             assert kit is not None
             assert kit.templates == []
+
+
+MULTI_AGENT_MANIFEST = {
+    "name": "testkit",
+    "version": "2.0.0",
+    "description": "Test kit with multiple agents",
+    "agents": [
+        "testkit.design.agent.md",
+        "testkit.coverage.agent.md",
+        "testkit.help.agent.md",
+    ],
+    "prompts": [
+        "testkit.design.prompt.md",
+        "testkit.coverage.prompt.md",
+    ],
+}
+
+NEW_AGENT_CONTENT = "# New Agent\nNew agent content.\n"
+NEW_PROMPT_CONTENT = "# New Prompt\nNew prompt content.\n"
+
+
+class TestInstallSkipAllNewFiles:
+    """Tests that skip_all only skips conflicting files, not new ones."""
+
+    @pytest.mark.asyncio
+    async def test_skip_all_still_installs_new_files(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """When user picks 'skip all' on a conflict, new files must still be installed."""
+        monkeypatch.chdir(initialized_project)
+
+        agents_dir = initialized_project / ".github" / "agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        # Pre-install one agent with DIFFERENT content to trigger conflict
+        (agents_dir / "testkit.design.agent.md").write_text(
+            "old content\n", encoding="utf-8"
+        )
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/testkit/manifest.json", payload=MULTI_AGENT_MANIFEST)
+            m.get(
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
+                body=AGENT_CONTENT,
+            )
+            m.get(
+                f"{BASE_URL}/testkit/agents/testkit.coverage.agent.md",
+                body=NEW_AGENT_CONTENT,
+            )
+            m.get(
+                f"{BASE_URL}/testkit/agents/testkit.help.agent.md",
+                body=NEW_AGENT_CONTENT,
+            )
+            m.get(
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
+                body=PROMPT_CONTENT,
+            )
+            m.get(
+                f"{BASE_URL}/testkit/prompts/testkit.coverage.prompt.md",
+                body=NEW_PROMPT_CONTENT,
+            )
+
+            monkeypatch.setattr(
+                "multikit.commands.install.prompt_overwrite", lambda _: "s"
+            )
+            await install_handler("testkit")
+
+        # The conflicting file should be skipped (old content preserved)
+        assert (agents_dir / "testkit.design.agent.md").read_text(
+            encoding="utf-8"
+        ) == "old content\n"
+
+        # New files must still be installed
+        assert (agents_dir / "testkit.coverage.agent.md").exists()
+        assert (agents_dir / "testkit.help.agent.md").exists()
+        prompts_dir = initialized_project / ".github" / "prompts"
+        assert (prompts_dir / "testkit.design.prompt.md").exists()
+        assert (prompts_dir / "testkit.coverage.prompt.md").exists()
+
+        # Config must track all non-skipped files
+        config = load_config(initialized_project)
+        kit = config.get_kit("testkit")
+        assert kit is not None
+        assert "agents/testkit.coverage.agent.md" in kit.files
+        assert "agents/testkit.help.agent.md" in kit.files
+        assert "prompts/testkit.design.prompt.md" in kit.files
+        assert "prompts/testkit.coverage.prompt.md" in kit.files
+
+    @pytest.mark.asyncio
+    async def test_skip_all_keeps_unchanged_files_in_config(
+        self, initialized_project: Path, monkeypatch
+    ) -> None:
+        """When user picks 'skip all', unchanged files must still be tracked in config."""
+        monkeypatch.chdir(initialized_project)
+
+        agents_dir = initialized_project / ".github" / "agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        # Pre-install one agent with SAME content (unchanged)
+        (agents_dir / "testkit.design.agent.md").write_text(
+            AGENT_CONTENT, encoding="utf-8"
+        )
+        # Pre-install another with DIFFERENT content (conflict)
+        (agents_dir / "testkit.coverage.agent.md").write_text(
+            "old coverage\n", encoding="utf-8"
+        )
+
+        m = aioresponses()
+        with m:
+            m.get(f"{BASE_URL}/testkit/manifest.json", payload=MULTI_AGENT_MANIFEST)
+            m.get(
+                f"{BASE_URL}/testkit/agents/testkit.design.agent.md",
+                body=AGENT_CONTENT,
+            )
+            m.get(
+                f"{BASE_URL}/testkit/agents/testkit.coverage.agent.md",
+                body=NEW_AGENT_CONTENT,
+            )
+            m.get(
+                f"{BASE_URL}/testkit/agents/testkit.help.agent.md",
+                body=NEW_AGENT_CONTENT,
+            )
+            m.get(
+                f"{BASE_URL}/testkit/prompts/testkit.design.prompt.md",
+                body=PROMPT_CONTENT,
+            )
+            m.get(
+                f"{BASE_URL}/testkit/prompts/testkit.coverage.prompt.md",
+                body=NEW_PROMPT_CONTENT,
+            )
+
+            monkeypatch.setattr(
+                "multikit.commands.install.prompt_overwrite", lambda _: "s"
+            )
+            await install_handler("testkit")
+
+        config = load_config(initialized_project)
+        kit = config.get_kit("testkit")
+        assert kit is not None
+        # Unchanged file must still be in config
+        assert "agents/testkit.design.agent.md" in kit.files
+        # Conflicting file should be skipped (not in files)
+        assert "agents/testkit.coverage.agent.md" not in kit.files
+        # New files must be in config
+        assert "agents/testkit.help.agent.md" in kit.files
+        assert "prompts/testkit.design.prompt.md" in kit.files
+        assert "prompts/testkit.coverage.prompt.md" in kit.files
