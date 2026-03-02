@@ -29,18 +29,56 @@ Kit은 특정 목적에 맞춘 에이전트(`*.agent.md`)와 프롬프트(`*.pro
 
 ## 제공 중인 킷
 
-| Kit          | Version | 도구 이름 (Agent / Prompt)    | 역할                                              |
-| :----------- | :------ | :---------------------------- | :------------------------------------------------ |
-| **gitkit**   | 1.0.0   | `gitkit.commit`               | Git 커밋 메시지 자동 작성 및 커밋 수행            |
-| **lintkit**  | 1.0.0   | `lintkit.analyze.python`      | Python 코드 정적 분석, 린팅 및 개선점 제안        |
-| **multikit** | 1.0.0   | `multikit.generation`         | 새로운 multikit 에이전트 및 프롬프트 템플릿 생성  |
-|              |         | `multikit.readme.governance`  | README 관리 규칙 생성/개정                        |
-|              |         | `multikit.readme.proposal`    | 프로젝트 변경 기반 README 수정안 제안             |
-| **speckit**  | 1.0.0   | `speckit.analyze`             | 요구사항(Spec) 문서 분석 및 리뷰                  |
-|              |         | `speckit.clarify`             | 모호한 요구사항 구체화 및 명확화                  |
-| **testkit**  | 1.0.0   | `testkit.python.testdesign`   | Python 코드 기반 테스트 케이스 설계               |
-|              |         | `testkit.python.testcoverage` | Python 테스트 커버리지 분석 및 누락된 테스트 보완 |
-|              |         | `testkit.python.demobuilder`  | Python 데모 및 예제 코드 작성                     |
+| Kit             | Version | 도구 이름 (Agent / Prompt)        | 역할                                                                     |
+| :-------------- | :------ | :-------------------------------- | :----------------------------------------------------------------------- |
+| **cikit**       | 2.0.0   | `cikit.governance.versioning`     | 버전 거버넌스 수립 (SemVer/CalVer 등 정책 결정)                          |
+|                 |         | `cikit.analyze.change`            | 커밋 변경사항 분석 및 변경 문서 생성                                     |
+|                 |         | `cikit.analyze.versioning`        | 변경사항 기반 버전 범프 레벨 분석                                        |
+|                 |         | `cikit.analyze.versioning.update` | 버전 업데이트 실행 (전체 파일 동기화)                                    |
+|                 |         | `cikit.ci.governance`             | CI 파이프라인 거버넌스 수립                                              |
+|                 |         | `cikit.ci.setup`                  | CI 워크플로우 생성 및 설정                                               |
+|                 |         | `cikit.ci.check`                  | CI 체크 실행 (Copilot / Ralph)                                           |
+|                 |         | `cikit.ci.doctor`                 | CI 실패 진단 및 수정 제안                                                |
+|                 |         | `cikit.help`                      | cikit 워크플로우 안내 (에이전트 역할·사용 시나리오)                      |
+| **demokit**     | 1.0.0   | `demokit.design`                  | 데모 전략 수립 — 형태(CLI/TUI/GUI) 및 범위 결정                          |
+|                 |         | `demokit.build`                   | 데모 구현 — `__main__` 블록부터 GUI 앱까지                               |
+|                 |         | `demokit.help`                    | demokit 워크플로우 안내 (에이전트 역할·사용 시나리오)                    |
+| **dockit**      | 2.0.0   | `dockit.governance.readme`        | README 거버넌스 수립 (필수 섹션/업데이트 정책)                           |
+|                 |         | `dockit.governance.project_docs`  | 프로젝트 문서 거버넌스 (가이드/API 문서 구조·정책 설계)                  |
+|                 |         | `dockit.generate.readme`          | README 초안 생성 (거버넌스 기반)                                         |
+|                 |         | `dockit.generate.project_docs`    | 프로젝트 문서 초안 생성                                                  |
+|                 |         | `dockit.analyze.readme`           | README 반영 필요 변경사항 분석 및 패치 제안                              |
+|                 |         | `dockit.analyze.project_docs`     | 프로젝트 문서 변경 분석 및 패치 제안                                     |
+|                 |         | `dockit.help`                     | dockit 워크플로우 안내 (에이전트 역할·사용 시나리오)                     |
+| **gitkit**      | 1.2.0   | `gitkit.commit`                   | Git 커밋 메시지 자동 작성 및 커밋 수행                                   |
+|                 |         | `gitkit.changelog`                | Conventional Commits 기반 CHANGELOG.md 생성                              |
+|                 |         | `gitkit.pr`                       | Pull Request 작성 지원                                                   |
+|                 |         | `gitkit.help`                     | gitkit 워크플로우 안내 (에이전트 역할·사용 시나리오)                     |
+| **multikit**    | 2.0.0   | `multikit.generation`             | 새로운 multikit 에이전트 및 프롬프트 템플릿 생성                         |
+|                 |         | `multikit.improve`                | 기존 에이전트 선언 분석·개선 (구조/품질/패턴 감사)                       |
+|                 |         | `multikit.register`               | 에이전트 에코시스템 등록 (manifest/registry/README/배포)                 |
+|                 |         | `multikit.validate`               | 킷 일관성 감사 (매니페스트/배포/상호참조 검증)                           |
+|                 |         | `multikit.help`                   | multikit 워크플로우 안내 (에이전트 역할·사용 시나리오)                   |
+| **promptkit**   | 1.0.0   | `promptkit.specify`               | 프롬프트 설계 명세 작성 (목적·서식·페르소나·I/O·기법)                    |
+|                 |         | `promptkit.analyze`               | 타겟 모델 케이스 스터디 + 고품질 샘플 선별 (SDPO 평가)                   |
+|                 |         | `promptkit.improve`               | 분석 기반 프롬프트 개선 (서식·문체·순서 조정, SDPO 자동화 루프 포함)     |
+|                 |         | `promptkit.script`                | LLM/VLM 요청 스크립트 대화형 설계·작성 (평가 하네스/배치 추론)           |
+|                 |         | `promptkit.help`                  | promptkit 워크플로우 안내 (에이전트 역할·사용 시나리오)                  |
+| **refactorkit** | 2.0.0   | `refactorkit.diagnose`            | 포괄적 코드 건강 진단 (lint·deprecation·logic·warnings·coverage·leakage) |
+|                 |         | `refactorkit.fix`                 | 통합 코드 수정 (경고·커버리지·스멜·import·deprecation·skip 해소)         |
+|                 |         | `refactorkit.help`                | refactorkit 워크플로우 안내 (에이전트 역할·사용 시나리오)                |
+| **speckit**     | 1.0.2   | `speckit.analyze`                 | 요구사항(Spec) 문서 분석 및 리뷰                                         |
+|                 |         | `speckit.clarify`                 | 모호한 요구사항 구체화 및 명확화                                         |
+|                 |         | `speckit.help`                    | speckit 워크플로우 안내 (에이전트 역할·사용 시나리오)                    |
+| **structkit**   | 2.0.0   | `structkit.governance`            | 프로젝트 디렉토리 구조 거버넌스 수립                                     |
+|                 |         | `structkit.analyze`               | 구조 컴플라이언스 검사 + 아키텍처 패턴·안티패턴 분석 (듀얼 모드)         |
+|                 |         | `structkit.fix`                   | 구조 위반 수정 계획 수립 및 실행                                         |
+|                 |         | `structkit.help`                  | structkit 워크플로우 안내 (에이전트 역할·사용 시나리오)                  |
+| **testkit**     | 3.0.0   | `testkit.design`                  | 테스트 설계 문서 생성 (what/why/how)                                     |
+|                 |         | `testkit.plan`                    | 테스트 전략 및 실행 계획 수립                                            |
+|                 |         | `testkit.coverage`                | 테스트 커버리지 분석 및 누락된 테스트 보완                               |
+|                 |         | `testkit.analyze`                 | 테스트 설계/계획 vs 실제 테스트 일관성 분석                              |
+|                 |         | `testkit.help`                    | testkit 워크플로우 안내 (에이전트 역할·사용 시나리오)                    |
 
 _※ 각 도구는 `.agent.md`와 `.prompt.md` 파일 쌍으로 제공됩니다._
 
@@ -91,13 +129,15 @@ multikit list
 your-project/
 ├── .github/
 │   ├── agents/
-│   │   ├── testkit.python.demobuilder.agent.md
-│   │   ├── testkit.python.testcoverage.agent.md
-│   │   └── testkit.python.testdesign.agent.md
+│   │   ├── testkit.analyze.agent.md
+│   │   ├── testkit.coverage.agent.md
+│   │   ├── testkit.design.agent.md
+│   │   └── testkit.plan.agent.md
 │   └── prompts/
-│       ├── testkit.python.demobuilder.prompt.md
-│       ├── testkit.python.testcoverage.prompt.md
-│       └── testkit.python.testdesign.prompt.md
+│       ├── testkit.analyze.prompt.md
+│       ├── testkit.coverage.prompt.md
+│       ├── testkit.design.prompt.md
+│       └── testkit.plan.prompt.md
 └── multikit.toml
 ```
 
@@ -134,13 +174,18 @@ multikit list
 출력 예시:
 
 ```text
-Kit       Status     Version    Agents    Prompts
---------  ---------  ---------  --------  ---------
-testkit   Installed  1.0.0      3         3
-gitkit    Available  1.0.0      —         —
-lintkit   Available  1.0.0      —         —
-multikit  Available  1.0.0      —         —
-speckit   Available  1.0.0      —         —
+Kit          Status     Version    Agents    Prompts
+-----------  ---------  ---------  --------  ---------
+testkit      Installed  3.0.0      5         5
+cikit        Available  2.0.0      —         —
+demokit      Available  1.0.0      —         —
+dockit       Available  2.0.0      —         —
+gitkit       Available  1.2.0      —         —
+multikit     Available  2.0.0      —         —
+promptkit    Available  1.0.0      —         —
+refactorkit  Available  2.0.0      —         —
+speckit      Available  1.0.2      —         —
+structkit    Available  2.0.0      —         —
 ```
 
 ### 4) 변경 비교
@@ -197,15 +242,17 @@ retry_base_delay = 0.5
 retry_max_delay = 2.0
 
 [multikit.kits.testkit]
-version = "1.0.0"
+version = "2.0.0"
 source = "remote"
 files = [
-    "agents/testkit.python.demobuilder.agent.md",
-    "agents/testkit.python.testcoverage.agent.md",
-    "agents/testkit.python.testdesign.agent.md",
-    "prompts/testkit.python.demobuilder.prompt.md",
-    "prompts/testkit.python.testcoverage.prompt.md",
-    "prompts/testkit.python.testdesign.prompt.md",
+    "agents/testkit.analyze.agent.md",
+    "agents/testkit.coverage.agent.md",
+    "agents/testkit.design.agent.md",
+    "agents/testkit.plan.agent.md",
+    "prompts/testkit.analyze.prompt.md",
+    "prompts/testkit.coverage.prompt.md",
+    "prompts/testkit.design.prompt.md",
+    "prompts/testkit.plan.prompt.md",
 ]
 ```
 
@@ -315,6 +362,7 @@ src/multikit/
 │   ├── install.py
 │   ├── list_cmd.py
 │   ├── uninstall.py
+│   ├── update.py
 │   └── diff.py
 ├── models/
 │   ├── kit.py
